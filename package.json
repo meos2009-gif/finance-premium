@@ -10,7 +10,9 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.104.0",
+    "apexcharts": "^5.10.6",
     "react": "^19.0.0",
+    "react-apexcharts": "^2.1.0",
     "react-dom": "^19.0.0",
     "react-router-dom": "^7.0.0"
   },
