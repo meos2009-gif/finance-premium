@@ -66,7 +66,6 @@ export default function Dashboard() {
     const totalDespesas = despesasMes.reduce((acc, d) => acc + Number(d.amount), 0);
     const saldo = totalReceitas - totalDespesas;
 
-    // Categoria dominante
     const totaisPorCategoria = {};
     despesasMes.forEach((t) => {
       if (!totaisPorCategoria[t.category_id]) totaisPorCategoria[t.category_id] = 0;
@@ -83,7 +82,6 @@ export default function Dashboard() {
       };
     }
 
-    // Ranking por empresa
     const totaisEmpresas = {};
     despesasMes.forEach((t) => {
       if (!totaisEmpresas[t.empresa_id]) totaisEmpresas[t.empresa_id] = 0;
@@ -92,7 +90,7 @@ export default function Dashboard() {
 
     const rankingCalc = Object.entries(totaisEmpresas)
       .map(([id, total]) => {
-        const emp = empresas.find((e) => e.id === id); // CORRIGIDO (sem Number)
+        const emp = empresas.find((e) => e.id === id);
         return {
           empresa: emp?.name || "—",
           total: total.toFixed(2),
@@ -118,11 +116,12 @@ export default function Dashboard() {
   ];
 
   return (
-    <div className="text-white flex flex-col gap-10">
+    <div className="text-white flex flex-col gap-10 px-4 md:px-0 w-full">
 
-      <h1 className="text-2xl font-bold text-[#facc15]">Dashboard</h1>
+      <h1 className="text-2xl font-bold text-[#facc15] text-center md:text-left w-full">
+        Dashboard
+      </h1>
 
-      {/* CARDS */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
 
         <div className="bg-[#111] border border-[#222] p-6 rounded-xl">
@@ -154,7 +153,6 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* QUADRO PREMIUM POR EMPRESA */}
       <div className="bg-[#111] border border-[#222] p-6 rounded-xl">
         <h2 className="text-xl font-bold mb-4 text-[#facc15]">Gastos por Empresa</h2>
         <PremiumTable columns={colunas} data={ranking} />
