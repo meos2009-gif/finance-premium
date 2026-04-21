@@ -1,6 +1,6 @@
 import { Routes, Route } from "react-router-dom";
 
-import MainLayout from "./layout/MainLayout";
+import AppLayout from "./layout/AppLayout";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 import Login from "./pages/Login";
@@ -23,7 +23,7 @@ export default function App() {
       <Route
         element={
           <ProtectedRoute>
-            <MainLayout />
+            <AppLayout />
           </ProtectedRoute>
         }
       >
