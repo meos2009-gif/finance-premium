@@ -15,84 +15,111 @@ export default function Receitas() {
   const [categorias, setCategorias] = useState([]);
   const [receitas, setReceitas] = useState([]);
 
-  // Buscar categorias ao carregar a página
+  const [editingId, setEditingId] = useState(null);
+
+  // Buscar categorias
   useEffect(() => {
     async function fetchCategorias() {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      const { data: session } = await supabase.auth.getUser();
+      if (!session.user) return;
 
-      if (!user) return;
-
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from("categories")
         .select("*")
-        .eq("user_id", user.id);
+        .eq("user_id", session.user.id);
 
-      if (!error) setCategorias(data);
+      setCategorias(data || []);
     }
-
     fetchCategorias();
   }, []);
 
-  // Buscar receitas ao carregar a página
+  // Buscar receitas
   useEffect(() => {
     async function fetchReceitas() {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      const { data: session } = await supabase.auth.getUser();
+      if (!session.user) return;
 
-      if (!user) return;
-
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from("transactions")
         .select("*")
         .eq("type", "income")
-        .eq("user_id", user.id)
+        .eq("user_id", session.user.id)
         .order("date", { ascending: false });
 
-      if (!error) setReceitas(data);
+      setReceitas(data || []);
     }
-
     fetchReceitas();
   }, []);
 
+  // SUBMETER (CRIAR OU EDITAR)
   async function handleSubmit(e) {
     e.preventDefault();
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const { data: session } = await supabase.auth.getUser();
+    if (!session.user) return;
 
-    if (!user) return;
-
-    const { data: inserted, error } = await supabase
-      .from("transactions")
-      .insert([
-        {
+    if (editingId) {
+      // UPDATE
+      const { error } = await supabase
+        .from("transactions")
+        .update({
           description: descricao,
           amount: Number(valor),
           date: data,
-          type: "income",
           category_id: categoria,
-          user_id: user.id,
-        },
-      ])
-      .select();
+        })
+        .eq("id", editingId);
 
-    if (error) {
-      console.log("ERRO SUPABASE:", error);
-      return;
+      if (!error) {
+        setReceitas((prev) =>
+          prev.map((r) =>
+            r.id === editingId
+              ? { ...r, description: descricao, amount: valor, date: data, category_id: categoria }
+              : r
+          )
+        );
+      }
+
+      setEditingId(null);
+    } else {
+      // INSERT
+      const { data: inserted } = await supabase
+        .from("transactions")
+        .insert([
+          {
+            description: descricao,
+            amount: Number(valor),
+            date: data,
+            type: "income",
+            category_id: categoria,
+            user_id: session.user.id,
+          },
+        ])
+        .select();
+
+      setReceitas((prev) => [...prev, inserted[0]]);
     }
 
-    // Atualizar tabela local
-    setReceitas((prev) => [...prev, inserted[0]]);
-
-    // Reset do formulário
+    // RESET
     setDescricao("");
     setValor("");
     setData("");
     setCategoria("");
+  }
+
+  // APAGAR
+  async function handleDelete(id) {
+    await supabase.from("transactions").delete().eq("id", id);
+    setReceitas((prev) => prev.filter((r) => r.id !== id));
+  }
+
+  // EDITAR
+  function handleEdit(item) {
+    setEditingId(item.id);
+    setDescricao(item.description);
+    setValor(item.amount);
+    setData(item.date);
+    setCategoria(item.category_id);
   }
 
   const colunas = [
@@ -104,31 +131,32 @@ export default function Receitas() {
   return (
     <div className="text-white flex flex-col gap-10">
 
-      {/* FORMULÁRIO PREMIUM */}
-      <PremiumForm title="Adicionar Receita" onSubmit={handleSubmit}>
+      <PremiumForm
+        title={editingId ? "Editar Receita" : "Adicionar Receita"}
+        onSubmit={handleSubmit}
+      >
         <PremiumInput
           label="Descrição"
-          type="text"
-          required
           value={descricao}
           onChange={(e) => setDescricao(e.target.value)}
+          required
         />
 
         <PremiumInput
           label="Valor (€)"
           type="number"
           step="0.01"
-          required
           value={valor}
           onChange={(e) => setValor(e.target.value)}
+          required
         />
 
         <PremiumInput
           label="Data"
           type="date"
-          required
           value={data}
           onChange={(e) => setData(e.target.value)}
+          required
         />
 
         <PremiumSelect
@@ -138,15 +166,21 @@ export default function Receitas() {
         >
           <option value="">Selecionar categoria</option>
           {categorias.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
+            <option key={c.id} value={c.id}>{c.name}</option>
           ))}
         </PremiumSelect>
+
+        <button className="bg-[#facc15] hover:bg-[#eab308] text-black font-semibold p-3 rounded-lg">
+          {editingId ? "Guardar Alterações" : "Adicionar"}
+        </button>
       </PremiumForm>
 
-      {/* TABELA PREMIUM */}
-      <PremiumTable columns={colunas} data={receitas} />
+      <PremiumTable
+        columns={colunas}
+        data={receitas}
+        onEdit={handleEdit}
+        onDelete={handleDelete}
+      />
     </div>
   );
 }

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { supabase } from "../supabaseClient";
 
-export default function MainLayout() {
+export default function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [reportsOpen, setReportsOpen] = useState(false);
 
@@ -19,9 +19,8 @@ export default function MainLayout() {
       {/* NAVBAR SUPERIOR */}
       <nav className="bg-[#111] text-white px-6 py-4 shadow-md border-b border-[#222] flex justify-between items-center">
         
-        {/* LOGO + TÍTULO */}
-        <div className="flex items-center gap-3">
-          <img src="/logo.png" alt="Logo" className="w-12 h-12 object-contain" />
+        {/* TÍTULO SEM LOGO */}
+        <div className="flex items-center">
           <h1 className="text-xl font-bold text-[#facc15]">Gestão Financeira</h1>
         </div>
 
@@ -62,11 +61,8 @@ export default function MainLayout() {
       >
         <div className="p-6 flex flex-col gap-6">
 
-          {/* LOGO NO MENU */}
-          <div className="flex items-center gap-3">
-            <img src="/logo.png" alt="Logo" className="w-12 h-12" />
-            <h2 className="text-lg font-bold text-[#facc15]">Menu</h2>
-          </div>
+          {/* TÍTULO DO MENU SEM LOGO */}
+          <h2 className="text-lg font-bold text-[#facc15]">Menu</h2>
 
           {/* LINKS */}
           <NavLink to="/dashboard" className="hover:text-[#facc15]" onClick={() => setSidebarOpen(false)}>Dashboard</NavLink>
@@ -93,7 +89,7 @@ export default function MainLayout() {
 
           <NavLink to="/config" className="hover:text-[#facc15]" onClick={() => setSidebarOpen(false)}>Configurações</NavLink>
 
-          {/* LOGOUT NO FUNDO */}
+          {/* LOGOUT */}
           <button
             onClick={handleLogout}
             className="bg-[#facc15] hover:bg-[#eab308] px-4 py-2 rounded-md text-black font-semibold mt-6"

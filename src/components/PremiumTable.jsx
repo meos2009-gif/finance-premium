@@ -1,38 +1,44 @@
-export default function PremiumTable({ columns = [], data = [] }) {
+export default function PremiumTable({ columns, data, onEdit, onDelete }) {
   return (
-    <div className="bg-[#1a1a1a] p-6 rounded-xl border border-[#222] shadow-lg overflow-x-auto">
+    <div className="overflow-x-auto rounded-xl border border-[#222] bg-[#111]">
       <table className="w-full text-left text-white">
-        
-        {/* CABEÇALHO */}
-        <thead>
-          <tr className="border-b border-[#333]">
+        <thead className="bg-[#1a1a1a] text-gray-300">
+          <tr>
             {columns.map((col) => (
-              <th
-                key={col.key}
-                className="py-3 px-4 text-sm font-semibold text-gray-300"
-              >
-                {col.label}
-              </th>
+              <th key={col.key} className="p-3">{col.label}</th>
             ))}
+            <th className="p-3">Ações</th>
           </tr>
         </thead>
 
-        {/* LINHAS */}
         <tbody>
-          {data.map((row, index) => (
-            <tr
-              key={index}
-              className="border-b border-[#222] hover:bg-[#222] transition"
-            >
+          {data.map((row) => (
+            <tr key={row.id} className="border-t border-[#222] hover:bg-[#1a1a1a]">
               {columns.map((col) => (
-                <td key={col.key} className="py-3 px-4 text-gray-200">
+                <td key={col.key} className="p-3">
                   {row[col.key]}
                 </td>
               ))}
+
+              {/* AÇÕES */}
+              <td className="p-3 flex gap-4">
+                <button
+                  className="text-yellow-400 hover:text-yellow-300 text-xl"
+                  onClick={() => onEdit(row)}
+                >
+                  ✏️
+                </button>
+
+                <button
+                  className="text-red-500 hover:text-red-400 text-xl"
+                  onClick={() => onDelete(row.id)}
+                >
+                  🗑️
+                </button>
+              </td>
             </tr>
           ))}
         </tbody>
-
       </table>
     </div>
   );
