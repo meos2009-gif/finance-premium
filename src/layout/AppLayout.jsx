@@ -11,7 +11,7 @@ export default function AppLayout() {
   };
 
   return (
-    <div className="flex min-h-screen bg-blue text-white">
+    <div className="flex min-h-screen bg-black text-white">
 
       {/* BOTÃO HAMBÚRGUER (MOBILE) */}
       <button
@@ -24,7 +24,7 @@ export default function AppLayout() {
       {/* OVERLAY (FADE) */}
       {menuOpen && (
         <div
-          className="fixed inset-0 bg-blue bg-opacity-0 animate-fadeIn z-40 md:hidden"
+          className="fixed inset-0 bg-black bg-opacity-0 animate-fadeIn z-40 md:hidden"
           onClick={() => setMenuOpen(false)}
         />
       )}
@@ -84,7 +84,7 @@ export default function AppLayout() {
       </aside>
 
       {/* CONTEÚDO PRINCIPAL */}
-      <main className="flex-1 p-4 md:p-8 overflow-y-auto md:ml-64 ml-0 transition-all duration-300">
+      <main className="flex-1 w-full p-4 md:p-8 overflow-y-auto md:ml-64 ml-0 transition-all duration-300">
         <Outlet />
       </main>
     </div>
