@@ -1,25 +1,20 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "../supabaseClient";
-
-import PremiumForm from "../components/PremiumForm";
-import PremiumInput from "../components/PremiumInput";
-import PremiumSelect from "../components/PremiumSelect";
 import PremiumTable from "../components/PremiumTable";
 
 export default function Despesas() {
+  const [categorias, setCategorias] = useState([]);
+  const [empresas, setEmpresas] = useState([]);
+  const [transacoes, setTransacoes] = useState([]);
+
   const [descricao, setDescricao] = useState("");
   const [valor, setValor] = useState("");
   const [data, setData] = useState("");
   const [categoria, setCategoria] = useState("");
 
-  const [categorias, setCategorias] = useState([]);
-  const [despesas, setDespesas] = useState([]);
-
-  const [editingId, setEditingId] = useState(null);
-
   // Buscar categorias
   useEffect(() => {
-    async function fetchCategorias() {
+    async function loadCategorias() {
       const { data: session } = await supabase.auth.getUser();
       if (!session.user) return;
 
@@ -30,157 +25,171 @@ export default function Despesas() {
 
       setCategorias(data || []);
     }
-    fetchCategorias();
+    loadCategorias();
+  }, []);
+
+  // Buscar empresas
+  useEffect(() => {
+    async function loadEmpresas() {
+      const { data: session } = await supabase.auth.getUser();
+      if (!session.user) return;
+
+      const { data } = await supabase
+        .from("empresas")
+        .select("*")
+        .eq("user_id", session.user.id);
+
+      setEmpresas(data || []);
+    }
+    loadEmpresas();
   }, []);
 
   // Buscar despesas
   useEffect(() => {
-    async function fetchDespesas() {
+    async function loadTransacoes() {
       const { data: session } = await supabase.auth.getUser();
       if (!session.user) return;
 
       const { data } = await supabase
         .from("transactions")
         .select("*")
-        .eq("type", "expense")
         .eq("user_id", session.user.id)
-        .order("date", { ascending: false });
+        .eq("type", "expense");
 
-      setDespesas(data || []);
+      setTransacoes(data || []);
     }
-    fetchDespesas();
+    loadTransacoes();
   }, []);
 
-  // SUBMETER (CRIAR OU EDITAR)
+  // Criar empresa se não existir
+  async function saveEmpresaIfNeeded(nome, userId) {
+    const { data: existing } = await supabase
+      .from("empresas")
+      .select("*")
+      .eq("name", nome)
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (existing) return existing.id;
+
+    const { data: inserted } = await supabase
+      .from("empresas")
+      .insert([{ name: nome, user_id: userId }])
+      .select()
+      .single();
+
+    return inserted.id;
+  }
+
+  // Submeter despesa
   async function handleSubmit(e) {
     e.preventDefault();
 
     const { data: session } = await supabase.auth.getUser();
     if (!session.user) return;
 
-    if (editingId) {
-      // UPDATE
-      const { error } = await supabase
-        .from("transactions")
-        .update({
-          description: descricao,
-          amount: Number(valor),
-          date: data,
-          category_id: categoria,
-        })
-        .eq("id", editingId);
+    // Extrair nome da empresa da descrição
+    const empresaNome = descricao.split(" ")[0];
 
-      if (!error) {
-        setDespesas((prev) =>
-          prev.map((d) =>
-            d.id === editingId
-              ? { ...d, description: descricao, amount: valor, date: data, category_id: categoria }
-              : d
-          )
-        );
-      }
+    const empresaId = await saveEmpresaIfNeeded(empresaNome, session.user.id);
 
-      setEditingId(null);
-    } else {
-      // INSERT
-      const { data: inserted } = await supabase
-        .from("transactions")
-        .insert([
-          {
-            description: descricao,
-            amount: Number(valor),
-            date: data,
-            type: "expense",
-            category_id: categoria,
-            user_id: session.user.id,
-          },
-        ])
-        .select();
+    await supabase.from("transactions").insert([
+      {
+        description: descricao,
+        amount: Number(valor),
+        date: data,
+        type: "expense",
+        category_id: categoria,
+        empresa_id: empresaId,
+        user_id: session.user.id,
+      },
+    ]);
 
-      setDespesas((prev) => [...prev, inserted[0]]);
-    }
-
-    // RESET
     setDescricao("");
     setValor("");
     setData("");
     setCategoria("");
-  }
 
-  // APAGAR
-  async function handleDelete(id) {
-    await supabase.from("transactions").delete().eq("id", id);
-    setDespesas((prev) => prev.filter((d) => d.id !== id));
-  }
+    // Recarregar lista
+    const { data: novas } = await supabase
+      .from("transactions")
+      .select("*")
+      .eq("user_id", session.user.id)
+      .eq("type", "expense");
 
-  // EDITAR
-  function handleEdit(item) {
-    setEditingId(item.id);
-    setDescricao(item.description);
-    setValor(item.amount);
-    setData(item.date);
-    setCategoria(item.category_id);
+    setTransacoes(novas || []);
   }
 
   const colunas = [
     { key: "description", label: "Descrição" },
+    { key: "empresa", label: "Empresa" },
     { key: "amount", label: "Valor (€)" },
     { key: "date", label: "Data" },
   ];
 
+  const tabela = transacoes.map((t) => {
+    const emp = empresas.find((e) => e.id === t.empresa_id);
+    return {
+      description: t.description,
+      empresa: emp?.name || "—",
+      amount: Number(t.amount).toFixed(2),
+      date: new Date(t.date).toLocaleDateString("pt-PT"),
+    };
+  });
+
   return (
     <div className="text-white flex flex-col gap-10">
 
-      <PremiumForm
-        title={editingId ? "Editar Despesa" : "Adicionar Despesa"}
-        onSubmit={handleSubmit}
-      >
-        <PremiumInput
-          label="Descrição"
+      <h1 className="text-2xl font-bold text-[#facc15]">Despesas</h1>
+
+      {/* FORMULÁRIO PREMIUM */}
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4 bg-[#111] p-6 rounded-xl border border-[#222]">
+
+        <input
+          type="text"
+          placeholder="Descrição"
+          className="bg-[#1a1a1a] p-3 rounded-lg border border-[#333]"
           value={descricao}
           onChange={(e) => setDescricao(e.target.value)}
           required
         />
 
-        <PremiumInput
-          label="Valor (€)"
+        <input
           type="number"
-          step="0.01"
+          placeholder="Valor"
+          className="bg-[#1a1a1a] p-3 rounded-lg border border-[#333]"
           value={valor}
           onChange={(e) => setValor(e.target.value)}
           required
         />
 
-        <PremiumInput
-          label="Data"
+        <input
           type="date"
+          className="bg-[#1a1a1a] p-3 rounded-lg border border-[#333]"
           value={data}
           onChange={(e) => setData(e.target.value)}
           required
         />
 
-        <PremiumSelect
-          label="Categoria"
+        <select
+          className="bg-[#1a1a1a] p-3 rounded-lg border border-[#333]"
           value={categoria}
           onChange={(e) => setCategoria(e.target.value)}
+          required
         >
-          <option value="">Selecionar categoria</option>
+          <option value="">Selecione a categoria</option>
           {categorias.map((c) => (
             <option key={c.id} value={c.id}>{c.name}</option>
           ))}
-        </PremiumSelect>
+        </select>
 
-        <button className="bg-[#facc15] hover:bg-[#eab308] text-black font-semibold p-3 rounded-lg">
-          {editingId ? "Guardar Alterações" : "Adicionar"}
+        <button className="bg-[#facc15] text-black font-bold p-3 rounded-lg hover:bg-[#eab308]">
+          Guardar Despesa
         </button>
-      </PremiumForm>
+      </form>
 
-      <PremiumTable
-        columns={colunas}
-        data={despesas}
-        onEdit={handleEdit}
-        onDelete={handleDelete}
-      />
+      {/* TABELA PREMIUM */}
+      <PremiumTable columns={colunas} data={tabela} />
     </div>
   );
 }
