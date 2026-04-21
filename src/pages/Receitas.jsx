@@ -1,23 +1,104 @@
+import { useState, useEffect } from "react";
+import { supabase } from "../supabaseClient";
+
 import PremiumForm from "../components/PremiumForm";
 import PremiumInput from "../components/PremiumInput";
+import PremiumSelect from "../components/PremiumSelect";
 import PremiumTable from "../components/PremiumTable";
 
 export default function Receitas() {
-  function handleSubmit(e) {
+  const [descricao, setDescricao] = useState("");
+  const [valor, setValor] = useState("");
+  const [data, setData] = useState("");
+  const [categoria, setCategoria] = useState("");
+
+  const [categorias, setCategorias] = useState([]);
+  const [receitas, setReceitas] = useState([]);
+
+  // Buscar categorias ao carregar a página
+  useEffect(() => {
+    async function fetchCategorias() {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from("categories")
+        .select("*")
+        .eq("user_id", user.id);
+
+      if (!error) setCategorias(data);
+    }
+
+    fetchCategorias();
+  }, []);
+
+  // Buscar receitas ao carregar a página
+  useEffect(() => {
+    async function fetchReceitas() {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from("transactions")
+        .select("*")
+        .eq("type", "income")
+        .eq("user_id", user.id)
+        .order("date", { ascending: false });
+
+      if (!error) setReceitas(data);
+    }
+
+    fetchReceitas();
+  }, []);
+
+  async function handleSubmit(e) {
     e.preventDefault();
-    console.log("Receita guardada");
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) return;
+
+    const { data: inserted, error } = await supabase
+      .from("transactions")
+      .insert([
+        {
+          description: descricao,
+          amount: Number(valor),
+          date: data,
+          type: "income",
+          category_id: categoria,
+          user_id: user.id,
+        },
+      ])
+      .select();
+
+    if (error) {
+      console.log("ERRO SUPABASE:", error);
+      return;
+    }
+
+    // Atualizar tabela local
+    setReceitas((prev) => [...prev, inserted[0]]);
+
+    // Reset do formulário
+    setDescricao("");
+    setValor("");
+    setData("");
+    setCategoria("");
   }
 
-  // EXEMPLO DE DADOS (depois vais substituir pelos dados reais do Supabase)
-  const receitasExemplo = [
-    { descricao: "Venda de produto", valor: "120€", data: "2026-04-20" },
-    { descricao: "Serviço prestado", valor: "80€", data: "2026-04-19" },
-  ];
-
   const colunas = [
-    { key: "descricao", label: "Descrição" },
-    { key: "valor", label: "Valor" },
-    { key: "data", label: "Data" },
+    { key: "description", label: "Descrição" },
+    { key: "amount", label: "Valor (€)" },
+    { key: "date", label: "Data" },
   ];
 
   return (
@@ -25,13 +106,47 @@ export default function Receitas() {
 
       {/* FORMULÁRIO PREMIUM */}
       <PremiumForm title="Adicionar Receita" onSubmit={handleSubmit}>
-        <PremiumInput label="Descrição" type="text" required />
-        <PremiumInput label="Valor (€)" type="number" step="0.01" required />
-        <PremiumInput label="Data" type="date" required />
+        <PremiumInput
+          label="Descrição"
+          type="text"
+          required
+          value={descricao}
+          onChange={(e) => setDescricao(e.target.value)}
+        />
+
+        <PremiumInput
+          label="Valor (€)"
+          type="number"
+          step="0.01"
+          required
+          value={valor}
+          onChange={(e) => setValor(e.target.value)}
+        />
+
+        <PremiumInput
+          label="Data"
+          type="date"
+          required
+          value={data}
+          onChange={(e) => setData(e.target.value)}
+        />
+
+        <PremiumSelect
+          label="Categoria"
+          value={categoria}
+          onChange={(e) => setCategoria(e.target.value)}
+        >
+          <option value="">Selecionar categoria</option>
+          {categorias.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
+          ))}
+        </PremiumSelect>
       </PremiumForm>
 
       {/* TABELA PREMIUM */}
-      <PremiumTable columns={colunas} data={receitasExemplo} />
+      <PremiumTable columns={colunas} data={receitas} />
     </div>
   );
 }
