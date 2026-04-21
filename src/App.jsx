@@ -11,6 +11,7 @@ import Receitas from "./pages/Receitas";
 import Despesas from "./pages/Despesas";
 import Categorias from "./pages/Categorias";
 import RelatorioMensal from "./pages/RelatorioMensal";
+import RelatorioCategorias from "./pages/RelatorioCategorias";
 
 export default function App() {
   return (
@@ -34,6 +35,7 @@ export default function App() {
         <Route path="/despesas" element={<Despesas />} />
         <Route path="/categorias" element={<Categorias />} />
         <Route path="/relatorio-mensal" element={<RelatorioMensal />} />
+        <Route path="/relatorio-categorias" element={<RelatorioCategorias />} />
       </Route>
 
     </Routes>
