@@ -1,195 +1,208 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../supabaseClient";
-import PremiumTable from "../components/PremiumTable";
 
 export default function Despesas() {
-  const [categorias, setCategorias] = useState([]);
-  const [empresas, setEmpresas] = useState([]);
-  const [transacoes, setTransacoes] = useState([]);
-
   const [descricao, setDescricao] = useState("");
   const [valor, setValor] = useState("");
   const [data, setData] = useState("");
-  const [categoria, setCategoria] = useState("");
+  const [categoriaId, setCategoriaId] = useState("");
 
-  // Buscar categorias
+  const [empresaInput, setEmpresaInput] = useState("");
+  const [empresas, setEmpresas] = useState([]);
+  const [empresasFiltradas, setEmpresasFiltradas] = useState([]);
+  const [mostrarSugestoes, setMostrarSugestoes] = useState(false);
+
+  const [categorias, setCategorias] = useState([]);
+
   useEffect(() => {
-    async function loadCategorias() {
+    async function load() {
       const { data: session } = await supabase.auth.getUser();
       if (!session.user) return;
 
-      const { data } = await supabase
+      const { data: cat } = await supabase
         .from("categories")
         .select("*")
         .eq("user_id", session.user.id);
 
-      setCategorias(data || []);
-    }
-    loadCategorias();
-  }, []);
+      setCategorias(cat || []);
 
-  // Buscar empresas
-  useEffect(() => {
-    async function loadEmpresas() {
-      const { data: session } = await supabase.auth.getUser();
-      if (!session.user) return;
-
-      const { data } = await supabase
+      const { data: emp } = await supabase
         .from("empresas")
         .select("*")
         .eq("user_id", session.user.id);
 
-      setEmpresas(data || []);
+      setEmpresas(emp || []);
     }
-    loadEmpresas();
+    load();
   }, []);
 
-  // Buscar despesas
-  useEffect(() => {
-    async function loadTransacoes() {
-      const { data: session } = await supabase.auth.getUser();
-      if (!session.user) return;
+  // AUTOCOMPLETE
+  const handleEmpresaChange = (e) => {
+    const valor = e.target.value;
+    setEmpresaInput(valor);
 
-      const { data } = await supabase
-        .from("transactions")
-        .select("*")
-        .eq("user_id", session.user.id)
-        .eq("type", "expense");
-
-      setTransacoes(data || []);
+    if (valor.trim() === "") {
+      setEmpresasFiltradas([]);
+      setMostrarSugestoes(false);
+      return;
     }
-    loadTransacoes();
-  }, []);
 
-  // Criar empresa se não existir
-  async function saveEmpresaIfNeeded(nome, userId) {
-    const { data: existing } = await supabase
-      .from("empresas")
-      .select("*")
-      .eq("name", nome)
-      .eq("user_id", userId)
-      .maybeSingle();
+    const filtradas = empresas.filter((emp) =>
+      emp.name.toLowerCase().includes(valor.toLowerCase())
+    );
 
-    if (existing) return existing.id;
+    setEmpresasFiltradas(filtradas);
+    setMostrarSugestoes(true);
+  };
 
-    const { data: inserted } = await supabase
-      .from("empresas")
-      .insert([{ name: nome, user_id: userId }])
-      .select()
-      .single();
+  const selecionarEmpresa = (nome) => {
+    setEmpresaInput(nome);
+    setMostrarSugestoes(false);
+  };
 
-    return inserted.id;
-  }
-
-  // Submeter despesa
-  async function handleSubmit(e) {
+  // SUBMIT
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     const { data: session } = await supabase.auth.getUser();
     if (!session.user) return;
 
-    // Extrair nome da empresa da descrição
-    const empresaNome = descricao.split(" ")[0];
+    // 1) Verificar se empresa existe
+    let empresaId = null;
 
-    const empresaId = await saveEmpresaIfNeeded(empresaNome, session.user.id);
+    const empresaExistente = empresas.find(
+      (emp) => emp.name.toLowerCase() === empresaInput.toLowerCase()
+    );
 
-    await supabase.from("transactions").insert([
-      {
-        description: descricao,
-        amount: Number(valor),
-        date: data,
-        type: "expense",
-        category_id: categoria,
-        empresa_id: empresaId,
-        user_id: session.user.id,
-      },
-    ]);
+    if (empresaExistente) {
+      empresaId = empresaExistente.id;
+    } else {
+      // Criar empresa nova
+      const { data: novaEmpresa } = await supabase
+        .from("empresas")
+        .insert({
+          name: empresaInput,
+          user_id: session.user.id,
+        })
+        .select()
+        .single();
 
+      empresaId = novaEmpresa.id;
+
+      // Atualizar lista local
+      setEmpresas((prev) => [...prev, novaEmpresa]);
+    }
+
+    // 2) Inserir despesa
+    await supabase.from("transactions").insert({
+      description: descricao,
+      amount: valor,
+      date: data,
+      type: "expense",
+      category_id: categoriaId,
+      empresa_id: empresaId,
+      user_id: session.user.id,
+    });
+
+    // Reset
     setDescricao("");
     setValor("");
     setData("");
-    setCategoria("");
-
-    // Recarregar lista
-    const { data: novas } = await supabase
-      .from("transactions")
-      .select("*")
-      .eq("user_id", session.user.id)
-      .eq("type", "expense");
-
-    setTransacoes(novas || []);
-  }
-
-  const colunas = [
-    { key: "description", label: "Descrição" },
-    { key: "empresa", label: "Empresa" },
-    { key: "amount", label: "Valor (€)" },
-    { key: "date", label: "Data" },
-  ];
-
-  const tabela = transacoes.map((t) => {
-    const emp = empresas.find((e) => e.id === t.empresa_id);
-    return {
-      description: t.description,
-      empresa: emp?.name || "—",
-      amount: Number(t.amount).toFixed(2),
-      date: new Date(t.date).toLocaleDateString("pt-PT"),
-    };
-  });
+    setCategoriaId("");
+    setEmpresaInput("");
+  };
 
   return (
     <div className="text-white flex flex-col gap-10">
+      <h1 className="text-2xl font-bold text-[#facc15]">Adicionar Despesa</h1>
 
-      <h1 className="text-2xl font-bold text-[#facc15]">Despesas</h1>
+      <form onSubmit={handleSubmit} className="flex flex-col gap-6">
 
-      {/* FORMULÁRIO PREMIUM */}
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4 bg-[#111] p-6 rounded-xl border border-[#222]">
+        <div>
+          <label className="text-sm text-gray-300">Descrição</label>
+          <input
+            type="text"
+            value={descricao}
+            onChange={(e) => setDescricao(e.target.value)}
+            className="w-full p-3 rounded-lg bg-[#111] border border-[#333] text-white focus:border-[#facc15]"
+            required
+          />
+        </div>
 
-        <input
-          type="text"
-          placeholder="Descrição"
-          className="bg-[#1a1a1a] p-3 rounded-lg border border-[#333]"
-          value={descricao}
-          onChange={(e) => setDescricao(e.target.value)}
-          required
-        />
+        <div>
+          <label className="text-sm text-gray-300">Valor (€)</label>
+          <input
+            type="number"
+            value={valor}
+            onChange={(e) => setValor(e.target.value)}
+            className="w-full p-3 rounded-lg bg-[#111] border border-[#333] text-white focus:border-[#facc15]"
+            required
+          />
+        </div>
 
-        <input
-          type="number"
-          placeholder="Valor"
-          className="bg-[#1a1a1a] p-3 rounded-lg border border-[#333]"
-          value={valor}
-          onChange={(e) => setValor(e.target.value)}
-          required
-        />
+        <div>
+          <label className="text-sm text-gray-300">Data</label>
+          <input
+            type="date"
+            value={data}
+            onChange={(e) => setData(e.target.value)}
+            className="w-full p-3 rounded-lg bg-[#111] border border-[#333] text-white focus:border-[#facc15]"
+            required
+          />
+        </div>
 
-        <input
-          type="date"
-          className="bg-[#1a1a1a] p-3 rounded-lg border border-[#333]"
-          value={data}
-          onChange={(e) => setData(e.target.value)}
-          required
-        />
+        <div>
+          <label className="text-sm text-gray-300">Categoria</label>
+          <select
+            value={categoriaId}
+            onChange={(e) => setCategoriaId(e.target.value)}
+            className="w-full p-3 rounded-lg bg-[#111] border border-[#333] text-white focus:border-[#facc15]"
+            required
+          >
+            <option value="">Selecionar...</option>
+            {categorias.map((cat) => (
+              <option key={cat.id} value={cat.id}>
+                {cat.name}
+              </option>
+            ))}
+          </select>
+        </div>
 
-        <select
-          className="bg-[#1a1a1a] p-3 rounded-lg border border-[#333]"
-          value={categoria}
-          onChange={(e) => setCategoria(e.target.value)}
-          required
+        {/* AUTOCOMPLETE DE EMPRESAS */}
+        <div className="relative w-full">
+          <label className="text-sm text-gray-300">Empresa</label>
+          <input
+            type="text"
+            value={empresaInput}
+            onChange={handleEmpresaChange}
+            onFocus={() => setMostrarSugestoes(true)}
+            className="w-full p-3 rounded-lg bg-[#111] border border-[#333] text-white focus:border-[#facc15]"
+            placeholder="Ex: Mercadona"
+            required
+          />
+
+          {mostrarSugestoes && empresasFiltradas.length > 0 && (
+            <ul className="absolute z-20 w-full bg-[#1a1a1a] border border-[#333] rounded-lg mt-1 max-h-40 overflow-y-auto shadow-xl">
+              {empresasFiltradas.map((emp) => (
+                <li
+                  key={emp.id}
+                  onClick={() => selecionarEmpresa(emp.name)}
+                  className="p-3 cursor-pointer hover:bg-[#222] text-white"
+                >
+                  {emp.name}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        <button
+          type="submit"
+          className="w-full p-3 rounded-lg bg-[#facc15] text-black font-bold hover:bg-yellow-400"
         >
-          <option value="">Selecione a categoria</option>
-          {categorias.map((c) => (
-            <option key={c.id} value={c.id}>{c.name}</option>
-          ))}
-        </select>
-
-        <button className="bg-[#facc15] text-black font-bold p-3 rounded-lg hover:bg-[#eab308]">
           Guardar Despesa
         </button>
       </form>
-
-      {/* TABELA PREMIUM */}
-      <PremiumTable columns={colunas} data={tabela} />
     </div>
   );
 }
