@@ -14,7 +14,8 @@ export default function ListaDespesas() {
         .from("transactions")
         .select("*")
         .eq("user_id", session.user.id)
-        .eq("type", "expense");
+        .eq("type", "expense")
+        .order("date", { ascending: false });
 
       setDespesas(data || []);
     }
@@ -34,7 +35,10 @@ export default function ListaDespesas() {
         Lista de Despesas
       </h1>
 
-      <PremiumTable columns={colunas} data={despesas} />
+      <div className="bg-[#111] border border-[#222] p-6 rounded-xl">
+        <PremiumTable columns={colunas} data={despesas} />
+      </div>
+
     </div>
   );
 }

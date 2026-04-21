@@ -13,7 +13,8 @@ export default function Categorias() {
       const { data } = await supabase
         .from("categories")
         .select("*")
-        .eq("user_id", session.user.id);
+        .eq("user_id", session.user.id)
+        .order("name");
 
       setCategorias(data || []);
     }
