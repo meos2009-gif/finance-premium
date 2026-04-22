@@ -33,7 +33,7 @@ export default function AppLayout() {
       {/* OVERLAY PREMIUM */}
       {menuOpen && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-80 backdrop-blur-sm z-40 md:hidden"
+          className="fixed inset-0 bg-black bg-opacity-80 backdrop-blur-sm z-40 md:hidden transition-opacity duration-300"
           onClick={() => setMenuOpen(false)}
         />
       )}
@@ -41,13 +41,27 @@ export default function AppLayout() {
       {/* SIDEBAR */}
       <aside
         className={`
-          fixed md:static top-0 left-0 h-full w-52 md:w-64 bg-[#0d0d0d] border-r border-[#222]
-          p-4 md:p-6 flex flex-col gap-6 shadow-xl z-50
+          fixed md:static top-0 left-0 h-full w-60 md:w-64 bg-[#0d0d0d] border-r border-[#222]
+          p-4 md:p-6 flex flex-col gap-6 shadow-2xl z-50
           transform transition-all duration-300 ease-out
           ${menuOpen ? "translate-x-0 opacity-100" : "-translate-x-full opacity-0"}
           md:translate-x-0 md:opacity-100
         `}
+        style={{
+          boxShadow: menuOpen
+            ? "8px 0 25px rgba(0,0,0,0.6)"
+            : "none",
+        }}
       >
+
+        {/* BOTÃO FECHAR (MOBILE) */}
+        <button
+          className="md:hidden self-end text-gray-400 hover:text-white text-2xl mb-2 active:scale-95 transition"
+          onClick={() => setMenuOpen(false)}
+        >
+          ✕
+        </button>
+
         <h1 className="text-xl font-bold text-[#facc15] text-center md:text-left">
           Finance Clean
         </h1>
