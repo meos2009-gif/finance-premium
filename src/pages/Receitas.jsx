@@ -9,26 +9,57 @@ export default function Receitas() {
   const [data, setData] = useState("");
 
   const [receitas, setReceitas] = useState([]);
+  const [tipos, setTipos] = useState([]);
 
   // -----------------------------
-  // CARREGAR RECEITAS
+  // CARREGAR RECEITAS E TIPOS
   // -----------------------------
   useEffect(() => {
     async function load() {
       const { data: session } = await supabase.auth.getUser();
       if (!session.user) return;
 
-      const { data } = await supabase
+      const { data: rec } = await supabase
         .from("transactions")
         .select("*")
         .eq("user_id", session.user.id)
         .eq("type", "income")
         .order("date", { ascending: false });
 
-      setReceitas(data || []);
+      setReceitas(rec || []);
+
+      const { data: t } = await supabase
+        .from("receitas_tipos")
+        .select("*")
+        .eq("user_id", session.user.id)
+        .order("name");
+
+      setTipos(t || []);
     }
     load();
   }, []);
+
+  // -----------------------------
+  // CRIAR TIPO AUTOMATICAMENTE
+  // -----------------------------
+  async function guardarTipo(nome, session) {
+    if (!nome.trim()) return;
+
+    const existente = tipos.find(
+      (t) => t.name.toLowerCase() === nome.toLowerCase()
+    );
+
+    if (existente) return;
+
+    const { data: novo } = await supabase
+      .from("receitas_tipos")
+      .insert([{ name: nome, user_id: session.user.id }])
+      .select();
+
+    if (novo && novo.length > 0) {
+      setTipos((prev) => [...prev, novo[0]]);
+    }
+  }
 
   // -----------------------------
   // ADICIONAR RECEITA
@@ -39,15 +70,21 @@ export default function Receitas() {
     const { data: session } = await supabase.auth.getUser();
     if (!session.user) return;
 
-    const { data: nova } = await supabase.from("transactions").insert({
-      description: descricao,
-      amount: valor,
-      date: data,
-      type: "income",
-      user_id: session.user.id,
-    }).select();
+    // Guardar tipo automaticamente
+    await guardarTipo(descricao, session);
 
-    // Atualizar lista local
+    // Inserir receita (SEM tipo_id)
+    const { data: nova } = await supabase
+      .from("transactions")
+      .insert({
+        description: descricao,
+        amount: valor,
+        date: data,
+        type: "income",
+        user_id: session.user.id,
+      })
+      .select();
+
     if (nova && nova.length > 0) {
       setReceitas((prev) => [nova[0], ...prev]);
     }
@@ -68,20 +105,31 @@ export default function Receitas() {
   return (
     <div className="text-white flex flex-col gap-10 px-4 md:px-0 w-full">
 
-      {/* TÍTULO */}
       <h1 className="text-2xl font-bold text-[#facc15] text-center md:text-left w-full">
         Receitas
       </h1>
 
-      {/* FORMULÁRIO PREMIUM */}
       <PremiumForm title="Adicionar Receita" onSubmit={handleSubmit}>
-        <PremiumInput
-          label="Descrição"
-          type="text"
-          value={descricao}
-          onChange={(e) => setDescricao(e.target.value)}
-          required
-        />
+
+        {/* DESCRIÇÃO COM AUTOCOMPLETE */}
+        <div className="flex flex-col gap-1">
+          <label className="text-sm text-gray-300">Descrição</label>
+
+          <input
+            list="lista-tipos"
+            className="bg-[#222] p-3 rounded-lg"
+            value={descricao}
+            onChange={(e) => setDescricao(e.target.value)}
+            placeholder="Ex: salários, rendas, juros..."
+            required
+          />
+
+          <datalist id="lista-tipos">
+            {tipos.map((t) => (
+              <option key={t.id} value={t.name} />
+            ))}
+          </datalist>
+        </div>
 
         <PremiumInput
           label="Valor (€)"

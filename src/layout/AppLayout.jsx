@@ -1,5 +1,5 @@
 import { Link, Outlet } from "react-router-dom";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "../supabaseClient";
 
 export default function AppLayout() {
@@ -9,6 +9,15 @@ export default function AppLayout() {
     await supabase.auth.signOut();
     window.location.href = "/login";
   };
+
+  // BLOQUEAR SCROLL QUANDO O MENU ESTÁ ABERTO
+  useEffect(() => {
+    if (menuOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "auto";
+    }
+  }, [menuOpen]);
 
   return (
     <div className="flex min-h-screen bg-black text-white">
@@ -21,10 +30,10 @@ export default function AppLayout() {
         ☰
       </button>
 
-      {/* OVERLAY (FADE) */}
+      {/* OVERLAY PREMIUM */}
       {menuOpen && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-0 animate-fadeIn z-40 md:hidden"
+          className="fixed inset-0 bg-black bg-opacity-80 backdrop-blur-sm z-40 md:hidden"
           onClick={() => setMenuOpen(false)}
         />
       )}
@@ -35,10 +44,13 @@ export default function AppLayout() {
           fixed md:static top-0 left-0 h-full w-52 md:w-64 bg-[#0d0d0d] border-r border-[#222]
           p-4 md:p-6 flex flex-col gap-6 shadow-xl z-50
           transform transition-all duration-300 ease-out
-          ${menuOpen ? "translate-x-0 opacity-100" : "-translate-x-full opacity-0 md:opacity-100 md:translate-x-0"}
+          ${menuOpen ? "translate-x-0 opacity-100" : "-translate-x-full opacity-0"}
+          md:translate-x-0 md:opacity-100
         `}
       >
-        <h1 className="text-xl font-bold text-[#facc15] text-center md:text-left">Finance Clean</h1>
+        <h1 className="text-xl font-bold text-[#facc15] text-center md:text-left">
+          Finance Clean
+        </h1>
 
         <nav className="flex flex-col gap-2 md:gap-3 text-gray-300">
 
