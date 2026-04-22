@@ -6,7 +6,6 @@ export default function ListaDespesas() {
   const [categorias, setCategorias] = useState([]);
   const [empresas, setEmpresas] = useState([]);
 
-  // ESTADO PARA EDITAR
   const [editando, setEditando] = useState(null);
   const [descricao, setDescricao] = useState("");
   const [valor, setValor] = useState("");
@@ -14,9 +13,6 @@ export default function ListaDespesas() {
   const [categoria, setCategoria] = useState("");
   const [empresa, setEmpresa] = useState("");
 
-  // -----------------------------
-  // CARREGAR DADOS
-  // -----------------------------
   useEffect(() => {
     async function load() {
       const { data: session } = await supabase.auth.getUser();
@@ -48,17 +44,11 @@ export default function ListaDespesas() {
     load();
   }, []);
 
-  // -----------------------------
-  // APAGAR DESPESA
-  // -----------------------------
   async function apagarDespesa(id) {
     await supabase.from("transactions").delete().eq("id", id);
     setDespesas((prev) => prev.filter((d) => d.id !== id));
   }
 
-  // -----------------------------
-  // ABRIR MODAL DE EDIÇÃO
-  // -----------------------------
   function abrirEdicao(d) {
     setEditando(d.id);
     setDescricao(d.description);
@@ -68,9 +58,6 @@ export default function ListaDespesas() {
     setEmpresa(d.empresa_id);
   }
 
-  // -----------------------------
-  // GUARDAR ALTERAÇÕES
-  // -----------------------------
   async function guardarEdicao(e) {
     e.preventDefault();
 
@@ -85,7 +72,6 @@ export default function ListaDespesas() {
       })
       .eq("id", editando);
 
-    // Atualizar lista local
     setDespesas((prev) =>
       prev.map((d) =>
         d.id === editando
@@ -111,15 +97,14 @@ export default function ListaDespesas() {
         Lista de Despesas
       </h1>
 
-      {/* TABELA PREMIUM */}
       <div className="bg-[#111] border border-[#222] p-6 rounded-xl overflow-x-auto">
 
-        <table className="w-full table-fixed border-separate border-spacing-y-2">
+        <table className="w-full table-auto border-separate border-spacing-y-2">
           <thead>
             <tr className="text-gray-400">
-              <th className="w-[45%] py-2">Descrição</th>
+              <th className="w-[50%] py-2">Descrição</th>
               <th className="w-[15%] py-2 text-right">Valor (€)</th>
-              <th className="w-[25%] py-2">Data</th>
+              <th className="w-[20%] py-2">Data</th>
               <th className="w-[15%] py-2 text-center">Ações</th>
             </tr>
           </thead>
@@ -138,8 +123,8 @@ export default function ListaDespesas() {
 
                 <td className="p-3">{d.date}</td>
 
-                <td className="p-3 rounded-r-lg">
-                  <div className="flex justify-center gap-3">
+                <td className="p-3 rounded-r-lg text-center">
+                  <div className="inline-flex gap-3">
                     <button
                       onClick={() => abrirEdicao(d)}
                       className="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded-lg text-white"
@@ -162,7 +147,6 @@ export default function ListaDespesas() {
 
       </div>
 
-      {/* MODAL DE EDIÇÃO */}
       {editando && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4">
           <div className="bg-[#111] p-6 rounded-xl border border-[#222] w-full max-w-lg">
