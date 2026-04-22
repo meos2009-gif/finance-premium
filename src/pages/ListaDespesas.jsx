@@ -113,39 +113,53 @@ export default function ListaDespesas() {
 
       {/* TABELA PREMIUM */}
       <div className="bg-[#111] border border-[#222] p-6 rounded-xl overflow-x-auto">
-        <table className="w-full text-left">
+
+        <table className="w-full table-fixed border-separate border-spacing-y-2">
           <thead>
-            <tr className="text-gray-400 border-b border-[#333]">
-              <th className="py-2">Descrição</th>
-              <th className="py-2">Valor (€)</th>
-              <th className="py-2">Data</th>
-              <th className="py-2">Ações</th>
+            <tr className="text-gray-400">
+              <th className="w-[45%] py-2">Descrição</th>
+              <th className="w-[15%] py-2 text-right">Valor (€)</th>
+              <th className="w-[25%] py-2">Data</th>
+              <th className="w-[15%] py-2 text-center">Ações</th>
             </tr>
           </thead>
+
           <tbody>
             {despesas.map((d) => (
-              <tr key={d.id} className="border-b border-[#222]">
-                <td className="py-2">{d.description}</td>
-                <td className="py-2">{Number(d.amount).toFixed(2)}</td>
-                <td className="py-2">{d.date}</td>
-                <td className="py-2 flex gap-3">
-                  <button
-                    onClick={() => abrirEdicao(d)}
-                    className="px-3 py-1 bg-blue-600 rounded-lg text-white"
-                  >
-                    Editar
-                  </button>
-                  <button
-                    onClick={() => apagarDespesa(d.id)}
-                    className="px-3 py-1 bg-red-600 rounded-lg text-white"
-                  >
-                    Apagar
-                  </button>
+              <tr
+                key={d.id}
+                className="bg-[#1a1a1a] border border-[#333] rounded-lg"
+              >
+                <td className="p-3 rounded-l-lg">{d.description}</td>
+
+                <td className="p-3 text-right font-semibold text-green-400">
+                  {Number(d.amount).toFixed(2)}
+                </td>
+
+                <td className="p-3">{d.date}</td>
+
+                <td className="p-3 rounded-r-lg">
+                  <div className="flex justify-center gap-3">
+                    <button
+                      onClick={() => abrirEdicao(d)}
+                      className="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded-lg text-white"
+                    >
+                      Editar
+                    </button>
+
+                    <button
+                      onClick={() => apagarDespesa(d.id)}
+                      className="px-3 py-1 bg-red-600 hover:bg-red-700 rounded-lg text-white"
+                    >
+                      Apagar
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
+
       </div>
 
       {/* MODAL DE EDIÇÃO */}
