@@ -1,6 +1,8 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 
 import AppLayout from "./layout/AppLayout";
+import ProtectedRoute from "./components/ProtectedRoute";
+
 import Login from "./pages/Login";
 import Inicio from "./pages/Inicio";
 import Dashboard from "./pages/Dashboard";
@@ -16,15 +18,20 @@ export default function App() {
   return (
     <Routes>
 
-      {/* LOGIN FORA DO LAYOUT */}
+      {/* LOGIN — ROTA PÚBLICA */}
       <Route path="/login" element={<Login />} />
 
       {/* REDIRECIONAR /inicio → / */}
       <Route path="/inicio" element={<Navigate to="/" />} />
 
-      {/* TODAS AS PÁGINAS PROTEGIDAS */}
-      <Route element={<AppLayout />}>
-
+      {/* TODAS AS OUTRAS ROTAS SÃO PROTEGIDAS */}
+      <Route
+        element={
+          <ProtectedRoute>
+            <AppLayout />
+          </ProtectedRoute>
+        }
+      >
         <Route index element={<Inicio />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/receitas" element={<Receitas />} />
@@ -34,7 +41,6 @@ export default function App() {
         <Route path="/relatorio-mensal" element={<RelatorioMensal />} />
         <Route path="/relatorio-categorias" element={<RelatorioCategorias />} />
         <Route path="/configuracoes" element={<Configuracoes />} />
-
       </Route>
 
     </Routes>
