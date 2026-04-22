@@ -110,39 +110,46 @@ export default function ListaDespesas() {
           </thead>
 
           <tbody>
-            {despesas.map((d) => (
-              <tr
-                key={d.id}
-                className="bg-[#1a1a1a] border border-[#333] rounded-lg"
-              >
-                <td className="p-3 rounded-l-lg">{d.description}</td>
+  {despesas.map((d, index) => (
+    <tr
+      key={d.id}
+      className={`
+        border border-[#333] rounded-lg
+        ${index % 2 === 0 ? "bg-[#1a1a1a]" : "bg-[#151515]"}
+        hover:bg-[#222] transition
+        text-sm md:text-base
+      `}
+    >
+      <td className="px-3 py-1.5 rounded-l-lg">{d.description}</td>
 
-                <td className="p-3 text-right font-semibold text-green-400">
-                  {Number(d.amount).toFixed(2)}
-                </td>
+      <td className="px-3 py-1.5 text-right font-semibold text-green-400">
+        {Number(d.amount).toFixed(2)}
+      </td>
 
-                <td className="p-3">{d.date}</td>
+      <td className="px-3 py-1.5 text-sm md:text-base">
+        {d.date}
+      </td>
 
-                <td className="p-3 rounded-r-lg text-center">
-                  <div className="inline-flex gap-3">
-                    <button
-                      onClick={() => abrirEdicao(d)}
-                      className="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded-lg text-white"
-                    >
-                      Editar
-                    </button>
+      <td className="px-3 py-1.5 rounded-r-lg text-center">
+        <div className="inline-flex gap-2 md:gap-3">
+          <button
+            onClick={() => abrirEdicao(d)}
+            className="px-2 py-1 md:px-3 md:py-1 bg-blue-600 hover:bg-blue-700 rounded-lg text-white text-xs md:text-sm"
+          >
+            Editar
+          </button>
 
-                    <button
-                      onClick={() => apagarDespesa(d.id)}
-                      className="px-3 py-1 bg-red-600 hover:bg-red-700 rounded-lg text-white"
-                    >
-                      Apagar
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
+          <button
+            onClick={() => apagarDespesa(d.id)}
+            className="px-2 py-1 md:px-3 md:py-1 bg-red-600 hover:bg-red-700 rounded-lg text-white text-xs md:text-sm"
+          >
+            Apagar
+          </button>
+        </div>
+      </td>
+    </tr>
+  ))}
+</tbody>
         </table>
 
       </div>

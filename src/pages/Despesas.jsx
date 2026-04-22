@@ -11,7 +11,7 @@ export default function Despesas() {
   const [valor, setValor] = useState("");
   const [data, setData] = useState("");
   const [categoria, setCategoria] = useState("");
-  const [empresa, setEmpresa] = useState("");
+  const [empresa, setEmpresa] = useState(""); // <- nome, não ID
 
   useEffect(() => {
     async function load() {
@@ -35,22 +35,56 @@ export default function Despesas() {
     load();
   }, []);
 
+  // -----------------------------------------
+  // SUBMETER DESPESA (COM CRIAÇÃO DE EMPRESA)
+  // -----------------------------------------
   async function handleSubmit(e) {
     e.preventDefault();
 
     const { data: session } = await supabase.auth.getUser();
     if (!session.user) return;
 
+    let empresaId = null;
+
+    // 1. Se o utilizador escreveu algo no campo empresa
+    if (empresa.trim() !== "") {
+      // Verificar se já existe
+      const existente = empresas.find(
+        (x) => x.name.toLowerCase() === empresa.toLowerCase()
+      );
+
+      if (existente) {
+        empresaId = existente.id;
+      } else {
+        // Criar nova empresa
+        const { data: nova } = await supabase
+          .from("empresas")
+          .insert({
+            name: empresa,
+            user_id: session.user.id,
+          })
+          .select()
+          .single();
+
+        empresaId = nova.id;
+
+        // Atualizar lista local
+        setEmpresas((prev) => [...prev, nova]);
+      }
+    }
+
+    // 2. Inserir despesa
     await supabase.from("transactions").insert({
       description: descricao,
       amount: valor,
       date: data,
       type: "expense",
       category_id: categoria,
-      empresa_id: empresa,
+      empresa_id: empresaId,
       user_id: session.user.id,
     });
 
+    // 3. Limpar formulário
     setDescricao("");
     setValor("");
     setData("");
@@ -92,6 +126,7 @@ export default function Despesas() {
           required
         />
 
+        {/* CATEGORIA */}
         <div className="flex flex-col gap-1">
           <label className="text-sm text-gray-300">Categoria</label>
           <select
@@ -107,19 +142,24 @@ export default function Despesas() {
           </select>
         </div>
 
+        {/* EMPRESA — AGORA FUNCIONAL */}
         <div className="flex flex-col gap-1">
           <label className="text-sm text-gray-300">Empresa</label>
-          <select
+
+          <input
+            list="lista-empresas"
             value={empresa}
             onChange={(e) => setEmpresa(e.target.value)}
+            placeholder="Escreva ou selecione"
             className="bg-[#111] border border-[#333] text-white rounded-lg px-4 py-3"
             required
-          >
-            <option value="">Selecione</option>
+          />
+
+          <datalist id="lista-empresas">
             {empresas.map((e) => (
-              <option key={e.id} value={e.id}>{e.name}</option>
+              <option key={e.id} value={e.name} />
             ))}
-          </select>
+          </datalist>
         </div>
 
       </PremiumForm>
