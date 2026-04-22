@@ -93,7 +93,7 @@ export default function Dashboard() {
         const emp = empresas.find((e) => e.id === id);
         return {
           empresa: emp?.name || "—",
-          total: total.toFixed(2),
+          total: Number(total).toFixed(2),
           percent: totalDespesas > 0 ? ((total / totalDespesas) * 100).toFixed(1) + "%" : "0%",
         };
       })
@@ -122,6 +122,7 @@ export default function Dashboard() {
         Dashboard
       </h1>
 
+      {/* CARDS PRINCIPAIS */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
 
         <div className="bg-[#111] border border-[#222] p-6 rounded-xl">
@@ -153,9 +154,35 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div className="bg-[#111] border border-[#222] p-6 rounded-xl">
+      {/* DESKTOP: TABELA PREMIUM */}
+      <div className="hidden md:block bg-[#111] border border-[#222] p-6 rounded-xl">
         <h2 className="text-xl font-bold mb-4 text-[#facc15]">Gastos por Empresa</h2>
         <PremiumTable columns={colunas} data={ranking} />
+      </div>
+
+      {/* MOBILE: CARDS PREMIUM */}
+      <div className="md:hidden flex flex-col gap-3">
+        {ranking.map((r, index) => (
+          <div
+            key={index}
+            className={`
+              p-4 rounded-xl border border-[#333]
+              ${index % 2 === 0 ? "bg-[#1a1a1a]" : "bg-[#151515]"}
+            `}
+          >
+            <div className="font-semibold text-lg text-[#facc15]">
+              {r.empresa}
+            </div>
+
+            <div className="text-green-400 font-bold text-base">
+              {r.total} €
+            </div>
+
+            <div className="text-gray-300 text-sm">
+              {r.percent} do mês
+            </div>
+          </div>
+        ))}
       </div>
 
     </div>
