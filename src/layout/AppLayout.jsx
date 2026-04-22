@@ -4,28 +4,35 @@ import { supabase } from "../supabaseClient";
 
 export default function AppLayout() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [checkingAuth, setCheckingAuth] = useState(true);
 
   const location = useLocation();
   const isInicio = location.pathname === "/";
 
+  // PROTEÇÃO DE SESSÃO
+  useEffect(() => {
+    async function check() {
+      const { data } = await supabase.auth.getUser();
+      if (!data.user) {
+        window.location.href = "/login";
+        return;
+      }
+      setCheckingAuth(false);
+    }
+    check();
+  }, []);
+
   const terminarSessao = async () => {
     await supabase.auth.signOut();
-    window.location.href = "/";
+    window.location.href = "/login";
   };
 
-  // BLOQUEAR SCROLL QUANDO O MENU ESTÁ ABERTO
-  useEffect(() => {
-    if (menuOpen) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "auto";
-    }
-  }, [menuOpen]);
+  if (checkingAuth) return null;
 
   return (
     <div className="flex min-h-screen bg-black text-white">
 
-      {/* BOTÃO HAMBÚRGUER (MOBILE) */}
+      {/* BOTÃO HAMBÚRGUER */}
       <button
         className="md:hidden fixed top-4 left-4 z-50 bg-[#111] p-2 rounded-lg border border-[#333] shadow-lg active:scale-95 transition"
         onClick={() => setMenuOpen(true)}
@@ -33,10 +40,10 @@ export default function AppLayout() {
         ☰
       </button>
 
-      {/* OVERLAY PREMIUM */}
+      {/* OVERLAY */}
       {menuOpen && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-80 backdrop-blur-sm z-40 md:hidden transition-opacity duration-300"
+          className="fixed inset-0 bg-black bg-opacity-80 backdrop-blur-sm z-40 md:hidden"
           onClick={() => setMenuOpen(false)}
         />
       )}
@@ -47,19 +54,12 @@ export default function AppLayout() {
           fixed md:static top-0 left-0 h-full w-60 md:w-64 bg-[#0d0d0d] border-r border-[#222]
           p-4 md:p-6 flex flex-col gap-6 z-50
           transform transition-all duration-300 ease-out
-          ${menuOpen ? "translate-x-0 opacity-100" : "-translate-x-full opacity-0"}
-          md:translate-x-0 md:opacity-100
+          ${menuOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}
         `}
-        style={{
-          boxShadow: menuOpen
-            ? "8px 0 25px rgba(0,0,0,0.6)"
-            : "none",
-        }}
       >
 
-        {/* BOTÃO FECHAR (MOBILE) */}
         <button
-          className="md:hidden self-end text-gray-400 hover:text-white text-2xl mb-2 active:scale-95 transition"
+          className="md:hidden self-end text-gray-400 hover:text-white text-2xl mb-2"
           onClick={() => setMenuOpen(false)}
         >
           ✕
@@ -69,55 +69,56 @@ export default function AppLayout() {
           Finance Clean
         </h1>
 
+        {/* MENU */}
         <nav className="flex flex-col gap-2 md:gap-3 text-gray-300">
 
-  <Link to="/" onClick={() => setMenuOpen(false)} className="hover:text-white hover:bg-[#1a1a1a] p-2 md:p-3 rounded-lg transition">
-    Início
-  </Link>
+          <Link to="/" onClick={() => setMenuOpen(false)} className="hover:bg-[#1a1a1a] p-2 md:p-3 rounded-lg">
+            Início
+          </Link>
 
-  <Link to="/receitas" onClick={() => setMenuOpen(false)} className="hover:text-white hover:bg-[#1a1a1a] p-2 md:p-3 rounded-lg transition">
-    Receitas
-  </Link>
+          <Link to="/receitas" onClick={() => setMenuOpen(false)} className="hover:bg-[#1a1a1a] p-2 md:p-3 rounded-lg">
+            Receitas
+          </Link>
 
-  <Link to="/despesas" onClick={() => setMenuOpen(false)} className="hover:text-white hover:bg-[#1a1a1a] p-2 md:p-3 rounded-lg transition">
-    Despesas
-  </Link>
+          <Link to="/despesas" onClick={() => setMenuOpen(false)} className="hover:bg-[#1a1a1a] p-2 md:p-3 rounded-lg">
+            Despesas
+          </Link>
 
-  <Link to="/lista-despesas" onClick={() => setMenuOpen(false)} className="hover:text-white hover:bg-[#1a1a1a] p-2 md:p-3 rounded-lg transition">
-    Lista de Despesas
-  </Link>
+          <Link to="/lista-despesas" onClick={() => setMenuOpen(false)} className="hover:bg-[#1a1a1a] p-2 md:p-3 rounded-lg">
+            Lista de Despesas
+          </Link>
 
-  <Link to="/categorias" onClick={() => setMenuOpen(false)} className="hover:text-white hover:bg-[#1a1a1a] p-2 md:p-3 rounded-lg transition">
-    Categorias
-  </Link>
+          <Link to="/categorias" onClick={() => setMenuOpen(false)} className="hover:bg-[#1a1a1a] p-2 md:p-3 rounded-lg">
+            Categorias
+          </Link>
 
-  <Link to="/relatorio-mensal" onClick={() => setMenuOpen(false)} className="hover:text-white hover:bg-[#1a1a1a] p-2 md:p-3 rounded-lg transition">
-    Relatório Mensal
-  </Link>
+          <Link to="/relatorio-mensal" onClick={() => setMenuOpen(false)} className="hover:bg-[#1a1a1a] p-2 md:p-3 rounded-lg">
+            Relatório Mensal
+          </Link>
 
-  <Link to="/relatorio-categorias" onClick={() => setMenuOpen(false)} className="hover:text-white hover:bg-[#1a1a1a] p-2 md:p-3 rounded-lg transition">
-    Relatório por Categoria
-  </Link>
+          <Link to="/relatorio-categorias" onClick={() => setMenuOpen(false)} className="hover:bg-[#1a1a1a] p-2 md:p-3 rounded-lg">
+            Relatório por Categoria
+          </Link>
 
-  <Link to="/dashboard" onClick={() => setMenuOpen(false)} className="hover:text-white hover:bg-[#1a1a1a] p-2 md:p-3 rounded-lg transition">
-    Dashboard
-  </Link>
+          <Link to="/dashboard" onClick={() => setMenuOpen(false)} className="hover:bg-[#1a1a1a] p-2 md:p-3 rounded-lg">
+            Dashboard
+          </Link>
 
-  <Link to="/configuracoes" onClick={() => setMenuOpen(false)} className="hover:text-white hover:bg-[#1a1a1a] p-2 md:p-3 rounded-lg transition">
-    Configurações
-  </Link>
+          <Link to="/configuracoes" onClick={() => setMenuOpen(false)} className="hover:bg-[#1a1a1a] p-2 md:p-3 rounded-lg">
+            Configurações
+          </Link>
 
-</nav>
+        </nav>
 
         <button
           onClick={terminarSessao}
-          className="mt-auto bg-[#facc15] text-black font-bold p-3 rounded-lg hover:bg-yellow-400 transition active:scale-95"
+          className="mt-auto bg-[#facc15] text-black font-bold p-3 rounded-lg hover:bg-yellow-400"
         >
           Terminar Sessão
         </button>
       </aside>
 
-      {/* CONTEÚDO PRINCIPAL */}
+      {/* CONTEÚDO */}
       <main
         className={`
           flex-1 w-full overflow-y-auto transition-all duration-300

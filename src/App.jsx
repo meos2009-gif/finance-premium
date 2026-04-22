@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 
 import AppLayout from "./layout/AppLayout";
+import Login from "./pages/Login";
 import Inicio from "./pages/Inicio";
 import Dashboard from "./pages/Dashboard";
 import Receitas from "./pages/Receitas";
@@ -15,16 +16,16 @@ export default function App() {
   return (
     <Routes>
 
-      {/* ⭐ Redirecionar /inicio → / */}
+      {/* LOGIN FORA DO LAYOUT */}
+      <Route path="/login" element={<Login />} />
+
+      {/* REDIRECIONAR /inicio → / */}
       <Route path="/inicio" element={<Navigate to="/" />} />
 
-      {/* ⭐ TODAS AS PÁGINAS COM LAYOUT */}
+      {/* TODAS AS PÁGINAS PROTEGIDAS */}
       <Route element={<AppLayout />}>
 
-        {/* ⭐ PÁGINA INICIAL PREMIUM */}
         <Route index element={<Inicio />} />
-
-        {/* ⭐ PÁGINAS INTERNAS */}
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/receitas" element={<Receitas />} />
         <Route path="/despesas" element={<Despesas />} />
