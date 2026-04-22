@@ -21,6 +21,11 @@ export default function ListaDespesas() {
     });
   }
 
+  function getEmpresaNome(id) {
+    const emp = empresas.find((e) => e.id === id);
+    return emp ? emp.name : "—";
+  }
+
   useEffect(() => {
     async function load() {
       const { data: session } = await supabase.auth.getUser();
@@ -111,7 +116,7 @@ export default function ListaDespesas() {
         <table className="w-full table-auto border-separate border-spacing-y-2">
           <thead>
             <tr className="text-gray-400">
-              <th className="w-[50%] py-2">Descrição</th>
+              <th className="w-[50%] py-2">Empresa</th>
               <th className="w-[15%] py-2 text-right">Valor (€)</th>
               <th className="w-[20%] py-2">Data</th>
               <th className="w-[15%] py-2 text-center">Ações</th>
@@ -128,7 +133,9 @@ export default function ListaDespesas() {
                   hover:bg-[#222] transition
                 `}
               >
-                <td className="px-3 py-2 rounded-l-lg">{d.description}</td>
+                <td className="px-3 py-2 rounded-l-lg">
+                  {getEmpresaNome(d.empresa_id)}
+                </td>
 
                 <td className="px-3 py-2 text-right font-semibold text-green-400">
                   {Number(d.amount).toFixed(2)}
@@ -171,10 +178,14 @@ export default function ListaDespesas() {
             `}
           >
             <div className="font-semibold text-lg text-[#facc15]">
+              {getEmpresaNome(d.empresa_id)}
+            </div>
+
+            <div className="text-gray-400 text-sm">
               {d.description}
             </div>
 
-            <div className="text-green-400 font-bold text-base">
+            <div className="text-green-400 font-bold text-base mt-1">
               {Number(d.amount).toFixed(2)} €
             </div>
 
