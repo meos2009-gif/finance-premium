@@ -2,6 +2,18 @@ import { useEffect, useState } from "react";
 import { supabase } from "../supabaseClient";
 import PremiumTable from "../components/PremiumTable";
 
+import { Bar } from "react-chartjs-2";
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Tooltip,
+  Legend,
+} from "chart.js";
+
+ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip, Legend);
+
 export default function Dashboard() {
   const [transacoes, setTransacoes] = useState([]);
   const [categorias, setCategorias] = useState([]);
@@ -115,6 +127,38 @@ export default function Dashboard() {
     { key: "percent", label: "% do Mês" },
   ];
 
+  // -----------------------------
+  // GRÁFICO DE BARRAS
+  // -----------------------------
+  const chartData = {
+    labels: ranking.map((r) => r.empresa),
+    datasets: [
+      {
+        label: "Gastos (€)",
+        data: ranking.map((r) => Number(r.total)),
+        backgroundColor: "#facc15",
+        borderRadius: 6,
+      },
+    ],
+  };
+
+  const chartOptions = {
+    responsive: true,
+    plugins: {
+      legend: { display: false },
+    },
+    scales: {
+      x: {
+        ticks: { color: "#ccc" },
+        grid: { color: "#333" },
+      },
+      y: {
+        ticks: { color: "#ccc" },
+        grid: { color: "#333" },
+      },
+    },
+  };
+
   return (
     <div className="text-white flex flex-col gap-10 px-4 md:px-0 w-full">
 
@@ -154,35 +198,46 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* DESKTOP: TABELA PREMIUM */}
-      <div className="hidden md:block bg-[#111] border border-[#222] p-6 rounded-xl">
-        <h2 className="text-xl font-bold mb-4 text-[#facc15]">Gastos por Empresa</h2>
-        <PremiumTable columns={colunas} data={ranking} />
-      </div>
+      {/* GASTOS POR EMPRESA */}
+      <div className="bg-[#111] border border-[#222] p-6 rounded-xl flex flex-col gap-6">
 
-      {/* MOBILE: CARDS PREMIUM */}
-      <div className="md:hidden flex flex-col gap-3">
-        {ranking.map((r, index) => (
-          <div
-            key={index}
-            className={`
-              p-4 rounded-xl border border-[#333]
-              ${index % 2 === 0 ? "bg-[#1a1a1a]" : "bg-[#151515]"}
-            `}
-          >
-            <div className="font-semibold text-lg text-[#facc15]">
-              {r.empresa}
-            </div>
+        <h2 className="text-xl font-bold text-[#facc15]">Gastos por Empresa</h2>
 
-            <div className="text-green-400 font-bold text-base">
-              {r.total} €
-            </div>
+        {/* GRÁFICO */}
+        <div className="w-full">
+          <Bar data={chartData} options={chartOptions} />
+        </div>
 
-            <div className="text-gray-300 text-sm">
-              {r.percent} do mês
+        {/* DESKTOP: TABELA */}
+        <div className="hidden md:block">
+          <PremiumTable columns={colunas} data={ranking} />
+        </div>
+
+        {/* MOBILE: CARDS */}
+        <div className="md:hidden flex flex-col gap-3">
+          {ranking.map((r, index) => (
+            <div
+              key={index}
+              className={`
+                p-4 rounded-xl border border-[#333]
+                ${index % 2 === 0 ? "bg-[#1a1a1a]" : "bg-[#151515]"}
+              `}
+            >
+              <div className="font-semibold text-lg text-[#facc15]">
+                {r.empresa}
+              </div>
+
+              <div className="text-green-400 font-bold text-base">
+                {r.total} €
+              </div>
+
+              <div className="text-gray-300 text-sm">
+                {r.percent} do mês
+              </div>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
+
       </div>
 
     </div>
