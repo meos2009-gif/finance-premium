@@ -7,7 +7,7 @@ export default function AppLayout() {
 
   const terminarSessao = async () => {
     await supabase.auth.signOut();
-    window.location.href = "/login";
+    window.location.href = "/inicio";
   };
 
   // BLOQUEAR SCROLL QUANDO O MENU ESTÁ ABERTO

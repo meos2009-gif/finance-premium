@@ -22,3 +22,15 @@
     text-align: left;
   }
 }
+
+/* ⭐ SOMBRA PREMIUM DA SIDEBAR (funciona mesmo com translate-x) */
+.sidebar-shadow {
+  box-shadow: 8px 0 25px rgba(0, 0, 0, 0.6);
+}
+
+/* ⭐ SOMBRA MAIS SUAVE NO DESKTOP (opcional) */
+@media (min-width: 768px) {
+  .sidebar-shadow {
+    box-shadow: 4px 0 20px rgba(0, 0, 0, 0.4);
+  }
+}
