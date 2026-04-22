@@ -1,4 +1,4 @@
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 
 import AppLayout from "./layout/AppLayout";
 import Inicio from "./pages/Inicio";
@@ -15,12 +15,16 @@ export default function App() {
   return (
     <Routes>
 
-      {/* ⭐ Página inicial FORA do layout */}
-      <Route path="/" element={<Inicio />} />
-      <Route path="/inicio" element={<Inicio />} />
+      {/* ⭐ Redirecionar /inicio → / */}
+      <Route path="/inicio" element={<Navigate to="/" />} />
 
-      {/* ⭐ Todas as páginas internas COM layout */}
+      {/* ⭐ TODAS AS PÁGINAS COM LAYOUT */}
       <Route element={<AppLayout />}>
+
+        {/* ⭐ PÁGINA INICIAL PREMIUM */}
+        <Route index element={<Inicio />} />
+
+        {/* ⭐ PÁGINAS INTERNAS */}
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/receitas" element={<Receitas />} />
         <Route path="/despesas" element={<Despesas />} />
@@ -29,6 +33,7 @@ export default function App() {
         <Route path="/relatorio-mensal" element={<RelatorioMensal />} />
         <Route path="/relatorio-categorias" element={<RelatorioCategorias />} />
         <Route path="/configuracoes" element={<Configuracoes />} />
+
       </Route>
 
     </Routes>
