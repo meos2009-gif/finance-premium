@@ -13,6 +13,14 @@ export default function ListaDespesas() {
   const [categoria, setCategoria] = useState("");
   const [empresa, setEmpresa] = useState("");
 
+  function formatarDataCurta(dataISO) {
+    const d = new Date(dataISO);
+    return d.toLocaleDateString("pt-PT", {
+      day: "2-digit",
+      month: "2-digit",
+    });
+  }
+
   useEffect(() => {
     async function load() {
       const { data: session } = await supabase.auth.getUser();
@@ -97,7 +105,8 @@ export default function ListaDespesas() {
         Lista de Despesas
       </h1>
 
-      <div className="bg-[#111] border border-[#222] p-6 rounded-xl overflow-x-auto">
+      {/* DESKTOP: TABELA PREMIUM */}
+      <div className="hidden md:block bg-[#111] border border-[#222] p-6 rounded-xl overflow-x-auto">
 
         <table className="w-full table-auto border-separate border-spacing-y-2">
           <thead>
@@ -110,50 +119,89 @@ export default function ListaDespesas() {
           </thead>
 
           <tbody>
-  {despesas.map((d, index) => (
-    <tr
-      key={d.id}
-      className={`
-        border border-[#333] rounded-lg
-        ${index % 2 === 0 ? "bg-[#1a1a1a]" : "bg-[#151515]"}
-        hover:bg-[#222] transition
-        text-sm md:text-base
-      `}
-    >
-      <td className="px-3 py-1.5 rounded-l-lg">{d.description}</td>
+            {despesas.map((d, index) => (
+              <tr
+                key={d.id}
+                className={`
+                  border border-[#333] rounded-lg
+                  ${index % 2 === 0 ? "bg-[#1a1a1a]" : "bg-[#151515]"}
+                  hover:bg-[#222] transition
+                `}
+              >
+                <td className="px-3 py-2 rounded-l-lg">{d.description}</td>
 
-      <td className="px-3 py-1.5 text-right font-semibold text-green-400">
-        {Number(d.amount).toFixed(2)}
-      </td>
+                <td className="px-3 py-2 text-right font-semibold text-green-400">
+                  {Number(d.amount).toFixed(2)}
+                </td>
 
-      <td className="px-3 py-1.5 text-sm md:text-base">
-        {d.date}
-      </td>
+                <td className="px-3 py-2">{formatarDataCurta(d.date)}</td>
 
-      <td className="px-3 py-1.5 rounded-r-lg text-center">
-        <div className="inline-flex gap-2 md:gap-3">
-          <button
-            onClick={() => abrirEdicao(d)}
-            className="px-2 py-1 md:px-3 md:py-1 bg-blue-600 hover:bg-blue-700 rounded-lg text-white text-xs md:text-sm"
-          >
-            Editar
-          </button>
+                <td className="px-3 py-2 rounded-r-lg text-center">
+                  <div className="inline-flex gap-3">
+                    <button
+                      onClick={() => abrirEdicao(d)}
+                      className="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded-lg text-white"
+                    >
+                      Editar
+                    </button>
 
-          <button
-            onClick={() => apagarDespesa(d.id)}
-            className="px-2 py-1 md:px-3 md:py-1 bg-red-600 hover:bg-red-700 rounded-lg text-white text-xs md:text-sm"
-          >
-            Apagar
-          </button>
-        </div>
-      </td>
-    </tr>
-  ))}
-</tbody>
+                    <button
+                      onClick={() => apagarDespesa(d.id)}
+                      className="px-3 py-1 bg-red-600 hover:bg-red-700 rounded-lg text-white"
+                    >
+                      Apagar
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
         </table>
 
       </div>
 
+      {/* MOBILE: CARDS RESPONSIVOS */}
+      <div className="md:hidden flex flex-col gap-3">
+        {despesas.map((d, index) => (
+          <div
+            key={d.id}
+            className={`
+              p-4 rounded-xl border border-[#333]
+              ${index % 2 === 0 ? "bg-[#1a1a1a]" : "bg-[#151515]"}
+            `}
+          >
+            <div className="font-semibold text-lg text-[#facc15]">
+              {d.description}
+            </div>
+
+            <div className="text-green-400 font-bold text-base">
+              {Number(d.amount).toFixed(2)} €
+            </div>
+
+            <div className="text-gray-300 text-sm">
+              {formatarDataCurta(d.date)}
+            </div>
+
+            <div className="flex gap-2 mt-3">
+              <button
+                onClick={() => abrirEdicao(d)}
+                className="flex-1 py-1 bg-blue-600 hover:bg-blue-700 rounded-lg text-white text-sm"
+              >
+                Editar
+              </button>
+
+              <button
+                onClick={() => apagarDespesa(d.id)}
+                className="flex-1 py-1 bg-red-600 hover:bg-red-700 rounded-lg text-white text-sm"
+              >
+                Apagar
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* MODAL DE EDIÇÃO */}
       {editando && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4">
           <div className="bg-[#111] p-6 rounded-xl border border-[#222] w-full max-w-lg">
