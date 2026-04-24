@@ -5,6 +5,7 @@ import { supabase } from "../supabaseClient";
 export default function AppLayout() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [checkingAuth, setCheckingAuth] = useState(true);
+  const [openReports, setOpenReports] = useState(false);
 
   const location = useLocation();
   const isInicio = location.pathname === "/";
@@ -72,6 +73,7 @@ export default function AppLayout() {
         {/* MENU */}
         <nav className="flex flex-col gap-2 md:gap-3 text-gray-300">
 
+          {/* PRINCIPAL */}
           <Link to="/" onClick={() => setMenuOpen(false)} className="hover:bg-[#1a1a1a] p-2 md:p-3 rounded-lg">
             Início
           </Link>
@@ -92,19 +94,63 @@ export default function AppLayout() {
             Categorias
           </Link>
 
-          <Link to="/relatorio-mensal" onClick={() => setMenuOpen(false)} className="hover:bg-[#1a1a1a] p-2 md:p-3 rounded-lg">
-            Relatório Mensal
-          </Link>
+          {/* SEPARADOR COLAPSÁVEL */}
+          <div
+            className="mt-4 mb-1 text-gray-500 uppercase text-xs tracking-wider flex items-center justify-between cursor-pointer select-none"
+            onClick={() => setOpenReports(!openReports)}
+          >
+            <span>Relatórios Avançados</span>
+            <span className="text-gray-400 text-sm">
+              {openReports ? "▲" : "▼"}
+            </span>
+          </div>
 
-          <Link to="/relatorio-categorias" onClick={() => setMenuOpen(false)} className="hover:bg-[#1a1a1a] p-2 md:p-3 rounded-lg">
-            Relatório por Categoria
-          </Link>
+          {/* GRUPO COLAPSÁVEL */}
+          <div
+            className={`
+              flex flex-col gap-2 overflow-hidden transition-all duration-300
+              ${openReports ? "max-h-96" : "max-h-0"}
+            `}
+          >
+            <Link
+              to="/dashboard"
+              onClick={() => setMenuOpen(false)}
+              className="hover:bg-[#1a1a1a] p-2 md:p-3 rounded-lg flex items-center gap-2"
+            >
+              📊 <span>Dashboard</span>
+            </Link>
 
-          <Link to="/dashboard" onClick={() => setMenuOpen(false)} className="hover:bg-[#1a1a1a] p-2 md:p-3 rounded-lg">
-            Dashboard
-          </Link>
+            <Link
+              to="/relatorio-mensal"
+              onClick={() => setMenuOpen(false)}
+              className="hover:bg-[#1a1a1a] p-2 md:p-3 rounded-lg flex items-center gap-2"
+            >
+              📅 <span>Relatório Mensal</span>
+            </Link>
 
-          <Link to="/configuracoes" onClick={() => setMenuOpen(false)} className="hover:bg-[#1a1a1a] p-2 md:p-3 rounded-lg">
+            <Link
+              to="/relatorio-categorias"
+              onClick={() => setMenuOpen(false)}
+              className="hover:bg-[#1a1a1a] p-2 md:p-3 rounded-lg flex items-center gap-2"
+            >
+              📂 <span>Relatório por Categoria</span>
+            </Link>
+
+            <Link
+              to="/variacao-despesas"
+              onClick={() => setMenuOpen(false)}
+              className="hover:bg-[#1a1a1a] p-2 md:p-3 rounded-lg flex items-center gap-2"
+            >
+              📉 <span>Variação de Despesas</span>
+            </Link>
+          </div>
+
+          {/* CONFIGURAÇÕES */}
+          <Link
+            to="/configuracoes"
+            onClick={() => setMenuOpen(false)}
+            className="hover:bg-[#1a1a1a] p-2 md:p-3 rounded-lg mt-4"
+          >
             Configurações
           </Link>
 
@@ -125,6 +171,16 @@ export default function AppLayout() {
           ${isInicio ? "p-0 md:ml-64" : "p-4 md:p-8 md:ml-64"}
         `}
       >
+        {/* BOTÃO VOLTAR */}
+        {!isInicio && (
+          <button
+            onClick={() => window.history.back()}
+            className="mb-4 bg-[#111] border border-[#333] px-4 py-2 rounded-lg hover:bg-[#1a1a1a] transition flex items-center gap-2"
+          >
+            ← Voltar
+          </button>
+        )}
+
         <Outlet />
       </main>
     </div>

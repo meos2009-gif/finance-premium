@@ -12,6 +12,8 @@
     "@supabase/supabase-js": "^2.104.0",
     "apexcharts": "^5.10.6",
     "chart.js": "^4.5.1",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^4.2.1",
     "react": "^19.0.0",
     "react-apexcharts": "^2.1.0",
     "react-chartjs-2": "^5.3.1",
