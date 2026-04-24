@@ -6,6 +6,17 @@ export default function RelatorioMensal() {
   const [transacoes, setTransacoes] = useState([]);
   const [categorias, setCategorias] = useState([]);
 
+  // -----------------------------
+  // LIMITES POR CATEGORIA (podes editar)
+  // -----------------------------
+  const limites = {
+    "Supermercado": 300,
+    "Restauração": 150,
+    "Transportes": 80,
+    "Saúde": 100,
+    "Lazer": 120,
+  };
+
   useEffect(() => {
     async function load() {
       const { data: session } = await supabase.auth.getUser();
@@ -50,28 +61,68 @@ export default function RelatorioMensal() {
   const saldo = totalReceitas - totalDespesas;
 
   // -----------------------------
-  // DISTRIBUIÇÃO POR CATEGORIA
+  // CÁLCULOS DO MÊS ANTERIOR
   // -----------------------------
-  const totaisPorCategoria = {};
+  const mesAnterior = mesAtual === 0 ? 11 : mesAtual - 1;
+  const anoAnterior = mesAtual === 0 ? anoAtual - 1 : anoAtual;
+
+  const despesasMesAnterior = transacoes.filter((t) => {
+    const d = new Date(t.date);
+    return t.type === "expense" && d.getMonth() === mesAnterior && d.getFullYear() === anoAnterior;
+  });
+
+  // -----------------------------
+  // TOTAL POR CATEGORIA (ATUAL E ANTERIOR)
+  // -----------------------------
+  const totaisAtual = {};
+  const totaisAnterior = {};
 
   despesasMes.forEach((t) => {
-    if (!totaisPorCategoria[t.category_id]) totaisPorCategoria[t.category_id] = 0;
-    totaisPorCategoria[t.category_id] += Number(t.amount);
+    if (!totaisAtual[t.category_id]) totaisAtual[t.category_id] = 0;
+    totaisAtual[t.category_id] += Number(t.amount);
   });
 
-  const categoriasLabels = Object.keys(totaisPorCategoria).map((id) => {
-    const cat = categorias.find((c) => c.id === id);
-    return cat ? cat.name : "Categoria";
+  despesasMesAnterior.forEach((t) => {
+    if (!totaisAnterior[t.category_id]) totaisAnterior[t.category_id] = 0;
+    totaisAnterior[t.category_id] += Number(t.amount);
   });
 
-  const categoriasValores = Object.values(totaisPorCategoria);
-
-  const tabelaCategorias = Object.entries(totaisPorCategoria).map(([id, valor]) => {
+  // -----------------------------
+  // TABELA FINAL PREMIUM
+  // -----------------------------
+  const tabelaFinal = Object.entries(totaisAtual).map(([id, valorAtual]) => {
     const cat = categorias.find((c) => c.id === id);
+    const nome = cat ? cat.name : "Categoria";
+
+    const valorAntigo = totaisAnterior[id] || 0;
+
+    const variacao = valorAntigo === 0
+      ? 100
+      : ((valorAtual - valorAntigo) / valorAntigo) * 100;
+
+    const limite = limites[nome] || null;
+    const percentLimite = limite ? ((valorAtual / limite) * 100).toFixed(1) : null;
+
     return {
-      categoria: cat ? cat.name : "Categoria",
-      valor: valor.toFixed(2),
-      percent: totalDespesas > 0 ? ((valor / totalDespesas) * 100).toFixed(1) + "%" : "0%",
+      categoria: nome,
+      atual: valorAtual.toFixed(2),
+      anterior: valorAntigo.toFixed(2),
+      variacao: variacao.toFixed(1),
+      limite,
+      percentLimite,
+      seta:
+        variacao > 0
+          ? "↓"
+          : variacao < 0
+          ? "↑"
+          : "—",
+      cor:
+        variacao > 0
+          ? "text-red-400"
+          : variacao < 0
+          ? "text-green-400"
+          : "text-gray-400",
+      ultrapassou: limite && valorAtual > limite,
     };
   });
 
@@ -104,61 +155,64 @@ export default function RelatorioMensal() {
         </div>
       </div>
 
-      {/* GRÁFICO RECEITAS VS DESPESAS */}
+      {/* TABELA PREMIUM NOVA */}
       <div className="bg-[#111] border border-[#222] p-6 rounded-xl">
-        <h2 className="text-xl font-bold mb-4 text-[#facc15]">Receitas vs Despesas</h2>
-
-        <Chart
-          type="bar"
-          height={350}
-          series={[
-            { name: "Receitas", data: [totalReceitas] },
-            { name: "Despesas", data: [totalDespesas] },
-          ]}
-          options={{
-            chart: { background: "transparent", foreColor: "#fff" },
-            colors: ["#22c55e", "#ef4444"],
-            xaxis: { categories: ["Mês Atual"] },
-            grid: { borderColor: "#333" },
-          }}
-        />
-      </div>
-
-      {/* GRÁFICO DONUT POR CATEGORIA */}
-      <div className="bg-[#111] border border-[#222] p-6 rounded-xl">
-        <h2 className="text-xl font-bold mb-4 text-[#facc15]">Distribuição por Categoria</h2>
-
-        <Chart
-          type="donut"
-          height={350}
-          series={categoriasValores}
-          options={{
-            labels: categoriasLabels,
-            chart: { background: "transparent", foreColor: "#fff" },
-            colors: ["#facc15", "#22c55e", "#3b82f6", "#ef4444", "#a855f7", "#14b8a6"],
-            legend: { labels: { colors: "#fff" } },
-          }}
-        />
-      </div>
-
-      {/* TABELA PREMIUM POR CATEGORIA */}
-      <div className="bg-[#111] border border-[#222] p-6 rounded-xl">
-        <h2 className="text-xl font-bold mb-4 text-[#facc15]">Tabela por Categoria</h2>
+        <h2 className="text-xl font-bold mb-4 text-[#facc15]">Análise por Categoria</h2>
 
         <table className="w-full text-left">
           <thead>
             <tr className="text-gray-400 border-b border-[#333]">
               <th className="py-2">Categoria</th>
-              <th className="py-2">Valor (€)</th>
-              <th className="py-2">% do Mês</th>
+              <th className="py-2">Atual (€)</th>
+              <th className="py-2">Anterior (€)</th>
+              <th className="py-2">Variação</th>
+              <th className="py-2">Limite</th>
+              <th className="py-2">% Limite</th>
             </tr>
           </thead>
+
           <tbody>
-            {tabelaCategorias.map((c, i) => (
-              <tr key={i} className="border-b border-[#222]">
+            {tabelaFinal.map((c, i) => (
+              <tr
+                key={i}
+                className={`
+                  border-b border-[#222]
+                  ${c.ultrapassou ? "bg-red-900/30" : ""}
+                `}
+              >
                 <td className="py-2">{c.categoria}</td>
-                <td className="py-2">{c.valor}</td>
-                <td className="py-2">{c.percent}</td>
+                <td className="py-2">{c.atual}</td>
+                <td className="py-2">{c.anterior}</td>
+
+                <td className={`py-2 font-bold ${c.cor}`}>
+                  {c.seta} {c.variacao}%
+                </td>
+
+                <td className="py-2 font-semibold">
+                  {c.limite ? (
+                    c.ultrapassou ? (
+                      <span className="text-red-400 flex items-center gap-1">
+                        ⚠️ {c.limite}€
+                      </span>
+                    ) : (
+                      <span className="text-green-400">{c.limite}€</span>
+                    )
+                  ) : (
+                    "—"
+                  )}
+                </td>
+
+                <td className="py-2 font-bold">
+                  {c.percentLimite ? (
+                    Number(c.percentLimite) > 100 ? (
+                      <span className="text-red-400">{c.percentLimite}%</span>
+                    ) : (
+                      <span className="text-green-400">{c.percentLimite}%</span>
+                    )
+                  ) : (
+                    "—"
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>
