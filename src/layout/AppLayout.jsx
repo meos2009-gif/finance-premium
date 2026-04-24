@@ -10,6 +10,7 @@ export default function AppLayout() {
   const location = useLocation();
   const navigate = useNavigate();
 
+  // 👉 Página inicial REAL da app (menu lateral)
   const isInicio = location.pathname === "/";
 
   // PROTEÇÃO DE SESSÃO
@@ -75,8 +76,12 @@ export default function AppLayout() {
         {/* MENU */}
         <nav className="flex flex-col gap-2 md:gap-3 text-gray-300">
 
-          {/* PRINCIPAL */}
-          <Link to="/" onClick={() => setMenuOpen(false)} className="hover:bg-[#1a1a1a] p-2 md:p-3 rounded-lg">
+          {/* INÍCIO — agora é "/" */}
+          <Link
+            to="/"
+            onClick={() => setMenuOpen(false)}
+            className="hover:bg-[#1a1a1a] p-2 md:p-3 rounded-lg"
+          >
             Início
           </Link>
 
@@ -147,7 +152,6 @@ export default function AppLayout() {
             </Link>
           </div>
 
-          {/* CONFIGURAÇÕES */}
           <Link
             to="/configuracoes"
             onClick={() => setMenuOpen(false)}

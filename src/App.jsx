@@ -6,7 +6,6 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 
-import Inicio from "./pages/Inicio";
 import Dashboard from "./pages/Dashboard";
 import Receitas from "./pages/Receitas";
 import Despesas from "./pages/Despesas";
@@ -25,9 +24,6 @@ export default function App() {
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
 
-      {/* REDIRECIONAR /inicio → / */}
-      <Route path="/inicio" element={<Navigate to="/" />} />
-
       {/* ROTAS PROTEGIDAS */}
       <Route
         element={
@@ -36,7 +32,10 @@ export default function App() {
           </ProtectedRoute>
         }
       >
-        <Route index element={<Inicio />} />
+        {/* INÍCIO = MENU LATERAL */}
+        <Route path="/" element={<div />} />
+
+        {/* OUTRAS PÁGINAS */}
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/receitas" element={<Receitas />} />
         <Route path="/despesas" element={<Despesas />} />
