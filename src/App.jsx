@@ -13,6 +13,7 @@ import Categorias from "./pages/Categorias";
 import RelatorioMensal from "./pages/RelatorioMensal";
 import RelatorioCategorias from "./pages/RelatorioCategorias";
 import Configuracoes from "./pages/Configuracoes";
+import VariacaoDespesas from "./pages/VariacaoDespesas";
 
 export default function App() {
   return (
@@ -41,7 +42,9 @@ export default function App() {
         <Route path="/relatorio-mensal" element={<RelatorioMensal />} />
         <Route path="/relatorio-categorias" element={<RelatorioCategorias />} />
         <Route path="/configuracoes" element={<Configuracoes />} />
-      </Route>
+        <Route path="/variacao-despesas" element={<VariacaoDespesas />} />
+   
+</Route>
 
     </Routes>
   );
