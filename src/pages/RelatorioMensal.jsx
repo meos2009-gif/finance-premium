@@ -10,16 +10,23 @@ export default function RelatorioMensal() {
   const [empresas, setEmpresas] = useState([]);
 
   // -----------------------------------------
-  // EXPORTAR PDF
+  // EXPORTAR PDF (TEMPLATE BRANCO)
   // -----------------------------------------
   const exportarPDF = async () => {
-    const elemento = document.getElementById("relatorio-mensal");
+    const elemento = document.getElementById("pdf-template");
 
-    if (!elemento) return;
+    if (!elemento) {
+      console.error("Elemento PDF não encontrado");
+      return;
+    }
+
+    // Esperar para garantir renderização
+    await new Promise((resolve) => setTimeout(resolve, 200));
 
     const canvas = await html2canvas(elemento, {
       scale: 2,
-      backgroundColor: "#000"
+      backgroundColor: "#fff",
+      useCORS: true
     });
 
     const imgData = canvas.toDataURL("image/png");
@@ -30,7 +37,6 @@ export default function RelatorioMensal() {
     const alturaImg = larguraPDF * proporcao;
 
     pdf.addImage(imgData, "PNG", 0, 0, larguraPDF, alturaImg);
-
     pdf.save(`Relatorio_Mensal_${new Date().toLocaleDateString()}.pdf`);
   };
 
@@ -44,7 +50,6 @@ export default function RelatorioMensal() {
 
       const userId = session.user.id;
 
-      // Transações
       const { data: trans } = await supabase
         .from("transactions")
         .select("*")
@@ -52,7 +57,6 @@ export default function RelatorioMensal() {
 
       setTransacoes(trans || []);
 
-      // Categorias
       const { data: cat } = await supabase
         .from("categories")
         .select("*")
@@ -60,7 +64,6 @@ export default function RelatorioMensal() {
 
       setCategorias(cat || []);
 
-      // Empresas
       const { data: emp } = await supabase
         .from("empresas")
         .select("*")
@@ -115,9 +118,8 @@ export default function RelatorioMensal() {
   const categoriaDominanteId = Object.entries(gastosPorCategoria).sort((a, b) => b[1] - a[1])[0]?.[0];
   const categoriaDominante = categorias.find((c) => c.id === categoriaDominanteId)?.name || "—";
 
-  // Empresa dominante (CORRIGIDO)
+  // Empresa dominante
   const gastosPorEmpresa = {};
-
   despesasMes.forEach((t) => {
     const empresaObj = empresas.find((e) => e.id === t.empresa_id);
     const nomeEmpresa = empresaObj ? empresaObj.name : "Sem empresa";
@@ -175,8 +177,8 @@ export default function RelatorioMensal() {
         </button>
       </div>
 
-      {/* WRAPPER DO PDF */}
-      <div id="relatorio-mensal" className="flex flex-col gap-10">
+      {/* RELATÓRIO VISUAL (ESCUR0) */}
+      <div className="flex flex-col gap-10">
 
         {/* CARDS */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -283,6 +285,54 @@ export default function RelatorioMensal() {
         </div>
 
       </div>
+
+      {/* ----------------------------------------- */}
+      {/* TEMPLATE BRANCO PARA PDF (FUNCIONAL) */}
+      {/* ----------------------------------------- */}
+      <div
+        id="pdf-template"
+        style={{
+          background: "#fff",
+          color: "#000",
+          padding: "20px",
+          width: "800px",
+          position: "absolute",
+          top: "0",
+          left: "0",
+          transform: "translateY(-200vh)" // fora do ecrã mas renderizado
+        }}
+      >
+        <h1 style={{ fontSize: "26px", marginBottom: "20px" }}>
+          Relatório Mensal
+        </h1>
+
+        <h2 style={{ fontSize: "20px", marginTop: "20px" }}>Resumo</h2>
+        <p>Receitas: {totalReceitas.toFixed(2)} €</p>
+        <p>Despesas: {totalDespesas.toFixed(2)} €</p>
+        <p>Saldo: {saldo.toFixed(2)} €</p>
+        <p>Total de transações: {totalTransacoes}</p>
+        <p>Categoria dominante: {categoriaDominante}</p>
+        <p>Empresa dominante: {empresaDominante}</p>
+
+        <h2 style={{ fontSize: "20px", marginTop: "20px" }}>Top Categorias</h2>
+        <ul>
+          {topCategorias.map((c, i) => (
+            <li key={i}>
+              {c.nome}: {c.valor.toFixed(2)} €
+            </li>
+          ))}
+        </ul>
+
+        <h2 style={{ fontSize: "20px", marginTop: "20px" }}>Top Empresas</h2>
+        <ul>
+          {topEmpresas.map((e, i) => (
+            <li key={i}>
+              {e.empresa}: {e.valor.toFixed(2)} €
+            </li>
+          ))}
+        </ul>
+      </div>
+
     </div>
   );
 }
