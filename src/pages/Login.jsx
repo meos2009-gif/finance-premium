@@ -72,6 +72,12 @@ export default function Login() {
         >
           Criar conta
         </button>
+
+        {/* ASSINATURA PREMIUM */}
+        <p className="text-gray-500 text-sm mt-6 text-center opacity-70">
+          Desenvolvido por <span className="text-[#facc15] font-semibold">Mário Oliveira</span>
+        </p>
+
       </div>
     </div>
   );
