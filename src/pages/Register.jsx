@@ -7,32 +7,32 @@ export default function Register() {
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
-
   const navigate = useNavigate();
 
   async function handleRegister(e) {
     e.preventDefault();
     setError("");
-    setSuccess("");
+
+    console.log("A tentar criar conta…");
 
     if (password !== confirm) {
       setError("As passwords não coincidem");
       return;
     }
 
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
     });
+
+    console.log("Resposta Supabase:", data, error);
 
     if (error) {
       setError(error.message);
       return;
     }
 
-    setSuccess("Conta criada com sucesso!");
-    setTimeout(() => navigate("/login"), 1500);
+    navigate("/login");
   }
 
   return (
@@ -46,12 +46,6 @@ export default function Register() {
         {error && (
           <div className="text-red-500 text-center mb-4 font-medium">
             {error}
-          </div>
-        )}
-
-        {success && (
-          <div className="text-green-500 text-center mb-4 font-medium">
-            {success}
           </div>
         )}
 

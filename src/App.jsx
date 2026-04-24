@@ -4,6 +4,8 @@ import AppLayout from "./layout/AppLayout";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 import Login from "./pages/Login";
+import Register from "./pages/Register";
+
 import Inicio from "./pages/Inicio";
 import Dashboard from "./pages/Dashboard";
 import Receitas from "./pages/Receitas";
@@ -19,13 +21,14 @@ export default function App() {
   return (
     <Routes>
 
-      {/* LOGIN — ROTA PÚBLICA */}
+      {/* ROTAS PÚBLICAS */}
       <Route path="/login" element={<Login />} />
+      <Route path="/register" element={<Register />} />
 
       {/* REDIRECIONAR /inicio → / */}
       <Route path="/inicio" element={<Navigate to="/" />} />
 
-      {/* TODAS AS OUTRAS ROTAS SÃO PROTEGIDAS */}
+      {/* ROTAS PROTEGIDAS */}
       <Route
         element={
           <ProtectedRoute>
@@ -43,8 +46,7 @@ export default function App() {
         <Route path="/relatorio-categorias" element={<RelatorioCategorias />} />
         <Route path="/configuracoes" element={<Configuracoes />} />
         <Route path="/variacao-despesas" element={<VariacaoDespesas />} />
-   
-</Route>
+      </Route>
 
     </Routes>
   );

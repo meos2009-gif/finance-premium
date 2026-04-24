@@ -1,245 +1,348 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../supabaseClient";
-import PremiumTable from "../components/PremiumTable";
-
-import { Bar } from "react-chartjs-2";
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Tooltip,
-  Legend,
-} from "chart.js";
-
-ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip, Legend);
+import Chart from "react-apexcharts";
+import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
 
 export default function Dashboard() {
   const [transacoes, setTransacoes] = useState([]);
   const [categorias, setCategorias] = useState([]);
   const [empresas, setEmpresas] = useState([]);
 
-  const [cards, setCards] = useState({
-    receitas: 0,
-    despesas: 0,
-    saldo: 0,
-    categoriaDominante: null,
-  });
+  const anoAtual = new Date().getFullYear();
+  const [anoSelecionado, setAnoSelecionado] = useState(anoAtual);
+  const [mesLimite, setMesLimite] = useState(new Date().getMonth());
 
-  const [ranking, setRanking] = useState([]);
+  const meses = [
+    "Janeiro","Fevereiro","Março","Abril","Maio","Junho",
+    "Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"
+  ];
 
+  // CARREGAR DADOS
   useEffect(() => {
     async function load() {
       const { data: session } = await supabase.auth.getUser();
       if (!session.user) return;
 
+      const userId = session.user.id;
+
+      const { data: trans } = await supabase
+        .from("transactions")
+        .select("*")
+        .eq("user_id", userId);
+
+      setTransacoes(trans || []);
+
       const { data: cat } = await supabase
         .from("categories")
         .select("*")
-        .eq("user_id", session.user.id);
+        .eq("user_id", userId);
 
       setCategorias(cat || []);
 
       const { data: emp } = await supabase
         .from("empresas")
         .select("*")
-        .eq("user_id", session.user.id);
+        .eq("user_id", userId);
 
       setEmpresas(emp || []);
-
-      const { data: trans } = await supabase
-        .from("transactions")
-        .select("*")
-        .eq("user_id", session.user.id);
-
-      setTransacoes(trans || []);
     }
     load();
   }, []);
 
-  useEffect(() => {
-    if (transacoes.length === 0) return;
+  // FILTRAR POR ANO E MÊS LIMITE
+  const despesasAno = transacoes.filter((t) => {
+    const d = new Date(t.date + "T00:00:00");
+    return (
+      t.type === "expense" &&
+      d.getFullYear() === anoSelecionado &&
+      d.getMonth() <= mesLimite
+    );
+  });
 
-    const agora = new Date();
-    const mesAtual = agora.getMonth();
-    const anoAtual = agora.getFullYear();
+  const receitasAno = transacoes.filter((t) => {
+    const d = new Date(t.date + "T00:00:00");
+    return (
+      t.type === "income" &&
+      d.getFullYear() === anoSelecionado &&
+      d.getMonth() <= mesLimite
+    );
+  });
 
-    const receitasMes = transacoes.filter((t) => {
-      const d = new Date(t.date);
-      return t.type === "income" && d.getMonth() === mesAtual && d.getFullYear() === anoAtual;
+  const totalReceitasAno = receitasAno.reduce((acc, t) => acc + Number(t.amount), 0);
+  const totalDespesasAno = despesasAno.reduce((acc, t) => acc + Number(t.amount), 0);
+  const saldoAno = totalReceitasAno - totalDespesasAno;
+
+  // GRÁFICO ANUAL
+  const valoresMensais = Array.from({ length: 12 }, (_, mes) => {
+    return despesasAno
+      .filter((t) => new Date(t.date + "T00:00:00").getMonth() === mes)
+      .reduce((acc, t) => acc + Number(t.amount), 0);
+  });
+
+  // TABELA EMPRESAS
+  const gastosPorEmpresa = {};
+  despesasAno.forEach((t) => {
+    const empresaObj = empresas.find((e) => e.id === t.empresa_id);
+    const nomeEmpresa = empresaObj ? empresaObj.name : "Sem empresa";
+
+    if (!gastosPorEmpresa[nomeEmpresa]) gastosPorEmpresa[nomeEmpresa] = 0;
+    gastosPorEmpresa[nomeEmpresa] += Number(t.amount);
+  });
+
+  const tabelaEmpresas = Object.entries(gastosPorEmpresa)
+    .map(([empresa, valor]) => ({
+      empresa,
+      valor,
+      percent: totalDespesasAno > 0 ? (valor / totalDespesasAno) * 100 : 0
+    }))
+    .sort((a, b) => b.valor - a.valor);
+
+  // TABELA CATEGORIAS
+  const gastosPorCategoria = {};
+  despesasAno.forEach((t) => {
+    if (!gastosPorCategoria[t.category_id]) gastosPorCategoria[t.category_id] = 0;
+    gastosPorCategoria[t.category_id] += Number(t.amount);
+  });
+
+  const tabelaCategorias = Object.entries(gastosPorCategoria)
+    .map(([id, valor]) => ({
+      categoria: categorias.find((c) => c.id === id)?.name || "Categoria",
+      valor,
+      percent: totalDespesasAno > 0 ? (valor / totalDespesasAno) * 100 : 0
+    }))
+    .sort((a, b) => b.valor - a.valor);
+
+  // EXPORTAR PDF
+  const exportarPDF = async () => {
+    const elemento = document.getElementById("pdf-anual");
+
+    if (!elemento) return;
+
+    await new Promise((resolve) => setTimeout(resolve, 300));
+
+    const canvas = await html2canvas(elemento, {
+      scale: 2,
+      backgroundColor: "#ffffff",
+      useCORS: true,
     });
 
-    const despesasMes = transacoes.filter((t) => {
-      const d = new Date(t.date);
-      return t.type === "expense" && d.getMonth() === mesAtual && d.getFullYear() === anoAtual;
-    });
+    const imgData = canvas.toDataURL("image/png");
 
-    const totalReceitas = receitasMes.reduce((acc, r) => acc + Number(r.amount), 0);
-    const totalDespesas = despesasMes.reduce((acc, d) => acc + Number(d.amount), 0);
-    const saldo = totalReceitas - totalDespesas;
+    const pdf = new jsPDF("p", "mm", "a4");
+    const larguraPDF = pdf.internal.pageSize.getWidth();
+    const proporcao = canvas.height / canvas.width;
+    const alturaImg = larguraPDF * proporcao;
 
-    const totaisPorCategoria = {};
-    despesasMes.forEach((t) => {
-      if (!totaisPorCategoria[t.category_id]) totaisPorCategoria[t.category_id] = 0;
-      totaisPorCategoria[t.category_id] += Number(t.amount);
-    });
-
-    let categoriaDominante = null;
-    if (Object.keys(totaisPorCategoria).length > 0) {
-      const [catId, valor] = Object.entries(totaisPorCategoria).sort((a, b) => b[1] - a[1])[0];
-      const catObj = categorias.find((c) => c.id === catId);
-      categoriaDominante = {
-        nome: catObj?.name || "Categoria",
-        percent: totalDespesas > 0 ? ((valor / totalDespesas) * 100).toFixed(1) : 0,
-      };
-    }
-
-    const totaisEmpresas = {};
-    despesasMes.forEach((t) => {
-      if (!totaisEmpresas[t.empresa_id]) totaisEmpresas[t.empresa_id] = 0;
-      totaisEmpresas[t.empresa_id] += Number(t.amount);
-    });
-
-    const rankingCalc = Object.entries(totaisEmpresas)
-      .map(([id, total]) => {
-        const emp = empresas.find((e) => e.id === id);
-        return {
-          empresa: emp?.name || "—",
-          total: Number(total).toFixed(2),
-          percent: totalDespesas > 0 ? ((total / totalDespesas) * 100).toFixed(1) + "%" : "0%",
-        };
-      })
-      .sort((a, b) => b.total - a.total);
-
-    setRanking(rankingCalc);
-
-    setCards({
-      receitas: totalReceitas,
-      despesas: totalDespesas,
-      saldo,
-      categoriaDominante,
-    });
-  }, [transacoes, categorias, empresas]);
-
-  const colunas = [
-    { key: "empresa", label: "Empresa" },
-    { key: "total", label: "Total (€)" },
-    { key: "percent", label: "% do Mês" },
-  ];
-
-  // -----------------------------
-  // GRÁFICO DE BARRAS
-  // -----------------------------
-  const chartData = {
-    labels: ranking.map((r) => r.empresa),
-    datasets: [
-      {
-        label: "Gastos (€)",
-        data: ranking.map((r) => Number(r.total)),
-        backgroundColor: "#facc15",
-        borderRadius: 6,
-      },
-    ],
-  };
-
-  const chartOptions = {
-    responsive: true,
-    plugins: {
-      legend: { display: false },
-    },
-    scales: {
-      x: {
-        ticks: { color: "#ccc" },
-        grid: { color: "#333" },
-      },
-      y: {
-        ticks: { color: "#ccc" },
-        grid: { color: "#333" },
-      },
-    },
+    pdf.addImage(imgData, "PNG", 0, 0, larguraPDF, alturaImg);
+    pdf.save(`Relatorio_Anual_${anoSelecionado}.pdf`);
   };
 
   return (
-    <div className="text-white flex flex-col gap-10 px-4 md:px-0 w-full">
+    <>
+      {/* DASHBOARD VISÍVEL */}
+      <div className="text-white flex flex-col gap-10 px-4 md:px-0 w-full">
 
-      <h1 className="text-2xl font-bold text-[#facc15] text-center md:text-left w-full">
-        Dashboard
-      </h1>
+        {/* TÍTULO + BOTÃO PDF */}
+        <div className="flex justify-between items-center">
+          <h1 className="text-2xl font-bold text-[#facc15]">
+            Dashboard Anual
+          </h1>
 
-      {/* CARDS PRINCIPAIS */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-
-        <div className="bg-[#111] border border-[#222] p-6 rounded-xl">
-          <h2 className="text-gray-400">Receitas</h2>
-          <p className="text-3xl font-bold text-green-400">{cards.receitas.toFixed(2)} €</p>
+          <button
+            onClick={exportarPDF}
+            className="bg-[#facc15] text-black font-bold px-4 py-2 rounded-lg hover:bg-yellow-400 transition"
+          >
+            Exportar PDF Anual
+          </button>
         </div>
 
-        <div className="bg-[#111] border border-[#222] p-6 rounded-xl">
-          <h2 className="text-gray-400">Despesas</h2>
-          <p className="text-3xl font-bold text-red-400">{cards.despesas.toFixed(2)} €</p>
+        {/* FILTROS */}
+        <div className="flex gap-4">
+          <select
+            value={anoSelecionado}
+            onChange={(e) => setAnoSelecionado(Number(e.target.value))}
+            className="bg-[#111] border border-[#333] text-white p-2 rounded"
+          >
+            {Array.from({ length: 6 }, (_, i) => anoAtual - i).map((ano) => (
+              <option key={ano} value={ano}>{ano}</option>
+            ))}
+          </select>
+
+          <select
+            value={mesLimite}
+            onChange={(e) => setMesLimite(Number(e.target.value))}
+            className="bg-[#111] border border-[#333] text-white p-2 rounded"
+          >
+            {meses.map((m, i) => (
+              <option key={i} value={i}>{m}</option>
+            ))}
+          </select>
         </div>
 
-        <div className="bg-[#111] border border-[#222] p-6 rounded-xl">
-          <h2 className="text-gray-400">Saldo</h2>
-          <p className={`text-3xl font-bold ${cards.saldo >= 0 ? "text-green-400" : "text-red-400"}`}>
-            {cards.saldo.toFixed(2)} €
-          </p>
-        </div>
-
-        <div className="bg-[#111] border border-[#222] p-6 rounded-xl">
-          <h2 className="text-gray-400">Categoria Dominante</h2>
-          {cards.categoriaDominante ? (
-            <p className="text-xl font-bold text-[#facc15]">
-              {cards.categoriaDominante.nome} — {cards.categoriaDominante.percent}%
+        {/* CARDS ANUAIS */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="bg-[#111] border border-[#222] p-6 rounded-xl">
+            <h2 className="text-gray-400">Receitas Anuais</h2>
+            <p className="text-3xl font-bold text-green-400">
+              {totalReceitasAno.toFixed(2)} €
             </p>
-          ) : (
-            <p className="text-gray-500">Sem dados</p>
-          )}
+          </div>
+
+          <div className="bg-[#111] border border-[#222] p-6 rounded-xl">
+            <h2 className="text-gray-400">Despesas Anuais</h2>
+            <p className="text-3xl font-bold text-red-400">
+              {totalDespesasAno.toFixed(2)} €
+            </p>
+          </div>
+
+          <div className="bg-[#111] border border-[#222] p-6 rounded-xl">
+            <h2 className="text-gray-400">Saldo Anual</h2>
+            <p className={`text-3xl font-bold ${saldoAno >= 0 ? "text-green-400" : "text-red-400"}`}>
+              {saldoAno.toFixed(2)} €
+            </p>
+          </div>
+        </div>
+
+        {/* GRÁFICO ANUAL */}
+        <div className="bg-[#111] border border-[#222] p-6 rounded-xl">
+          <h2 className="text-xl font-bold mb-4 text-[#facc15]">
+            Despesas por Mês
+          </h2>
+
+          <Chart
+            type="bar"
+            height={350}
+            series={[{ name: "Despesas", data: valoresMensais }]}
+            options={{
+              chart: { background: "transparent", foreColor: "#fff" },
+              colors: ["#ef4444"],
+              xaxis: { categories: meses },
+              grid: { borderColor: "#333" },
+            }}
+          />
+        </div>
+
+        {/* TABELA EMPRESAS */}
+        <div className="bg-[#111] border border-[#222] p-6 rounded-xl">
+          <h2 className="text-xl font-bold mb-4 text-[#facc15]">
+            Despesas por Empresa (Anual)
+          </h2>
+
+          <table className="w-full text-left">
+            <thead>
+              <tr className="border-b border-[#333]">
+                <th className="py-2">Empresa</th>
+                <th>Total</th>
+                <th>%</th>
+              </tr>
+            </thead>
+            <tbody>
+              {tabelaEmpresas.map((e, i) => (
+                <tr key={i} className="border-b border-[#222]">
+                  <td className="py-2">{e.empresa}</td>
+                  <td>{e.valor.toFixed(2)} €</td>
+                  <td>{e.percent.toFixed(1)}%</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* TABELA CATEGORIAS */}
+        <div className="bg-[#111] border border-[#222] p-6 rounded-xl">
+          <h2 className="text-xl font-bold mb-4 text-[#facc15]">
+            Despesas por Categoria (Anual)
+          </h2>
+
+          <table className="w-full text-left">
+            <thead>
+              <tr className="border-b border-[#333]">
+                <th className="py-2">Categoria</th>
+                <th>Total</th>
+                <th>%</th>
+              </tr>
+            </thead>
+            <tbody>
+              {tabelaCategorias.map((c, i) => (
+                <tr key={i} className="border-b border-[#222]">
+                  <td className="py-2">{c.categoria}</td>
+                  <td>{c.valor.toFixed(2)} €</td>
+                  <td>{c.percent.toFixed(1)}%</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
 
-      {/* GASTOS POR EMPRESA */}
-      <div className="bg-[#111] border border-[#222] p-6 rounded-xl flex flex-col gap-6">
+      {/* TEMPLATE PDF PREMIUM */}
+      <div
+        id="pdf-anual"
+        style={{
+          background: "#ffffff",
+          color: "#000000",
+          padding: "30px",
+          width: "900px",
+          position: "absolute",
+          top: "0",
+          left: "0",
+          transform: "translateY(-200vh)",
+          fontFamily: "Arial, sans-serif",
+        }}
+      >
+        <h1 style={{ fontSize: "28px", marginBottom: "10px" }}>
+          Relatório Anual {anoSelecionado}
+        </h1>
+        <p style={{ fontSize: "16px", marginBottom: "20px" }}>
+          Acumulado até {meses[mesLimite]}
+        </p>
 
-        <h2 className="text-xl font-bold text-[#facc15]">Gastos por Empresa</h2>
+        <h2 style={{ fontSize: "22px", marginTop: "20px" }}>Totais Anuais</h2>
+        <p>Receitas: {totalReceitasAno.toFixed(2)} €</p>
+        <p>Despesas: {totalDespesasAno.toFixed(2)} €</p>
+        <p>Saldo: {saldoAno.toFixed(2)} €</p>
 
-        {/* GRÁFICO */}
-        <div className="w-full">
-          <Bar data={chartData} options={chartOptions} />
-        </div>
+        <h2 style={{ fontSize: "22px", marginTop: "30px" }}>Despesas por Empresa</h2>
+        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <thead>
+            <tr>
+              <th style={{ borderBottom: "1px solid #ccc", padding: "6px" }}>Empresa</th>
+              <th style={{ borderBottom: "1px solid #ccc", padding: "6px" }}>Total</th>
+              <th style={{ borderBottom: "1px solid #ccc", padding: "6px" }}>%</th>
+            </tr>
+          </thead>
+          <tbody>
+            {tabelaEmpresas.map((e, i) => (
+              <tr key={i}>
+                <td style={{ padding: "6px" }}>{e.empresa}</td>
+                <td style={{ padding: "6px" }}>{e.valor.toFixed(2)} €</td>
+                <td style={{ padding: "6px" }}>{e.percent.toFixed(1)}%</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
 
-        {/* DESKTOP: TABELA */}
-        <div className="hidden md:block">
-          <PremiumTable columns={colunas} data={ranking} />
-        </div>
-
-        {/* MOBILE: CARDS */}
-        <div className="md:hidden flex flex-col gap-3">
-          {ranking.map((r, index) => (
-            <div
-              key={index}
-              className={`
-                p-4 rounded-xl border border-[#333]
-                ${index % 2 === 0 ? "bg-[#1a1a1a]" : "bg-[#151515]"}
-              `}
-            >
-              <div className="font-semibold text-lg text-[#facc15]">
-                {r.empresa}
-              </div>
-
-              <div className="text-green-400 font-bold text-base">
-                {r.total} €
-              </div>
-
-              <div className="text-gray-300 text-sm">
-                {r.percent} do mês
-              </div>
-            </div>
-          ))}
-        </div>
-
+        <h2 style={{ fontSize: "22px", marginTop: "30px" }}>Despesas por Categoria</h2>
+        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <thead>
+            <tr>
+              <th style={{ borderBottom: "1px solid #ccc", padding: "6px" }}>Categoria</th>
+              <th style={{ borderBottom: "1px solid #ccc", padding: "6px" }}>Total</th>
+              <th style={{ borderBottom: "1px solid #ccc", padding: "6px" }}>%</th>
+            </tr>
+          </thead>
+          <tbody>
+            {tabelaCategorias.map((c, i) => (
+              <tr key={i}>
+                <td style={{ padding: "6px" }}>{c.categoria}</td>
+                <td style={{ padding: "6px" }}>{c.valor.toFixed(2)} €</td>
+                <td style={{ padding: "6px" }}>{c.percent.toFixed(1)}%</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
-
-    </div>
+    </>
   );
 }
