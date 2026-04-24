@@ -1,4 +1,4 @@
-import { Link, Outlet, useLocation } from "react-router-dom";
+import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { supabase } from "../supabaseClient";
 
@@ -8,6 +8,8 @@ export default function AppLayout() {
   const [openReports, setOpenReports] = useState(false);
 
   const location = useLocation();
+  const navigate = useNavigate();
+
   const isInicio = location.pathname === "/";
 
   // PROTEÇÃO DE SESSÃO
@@ -174,7 +176,7 @@ export default function AppLayout() {
         {/* BOTÃO VOLTAR */}
         {!isInicio && (
           <button
-            onClick={() => window.history.back()}
+            onClick={() => navigate("/")}
             className="mb-4 bg-[#111] border border-[#333] px-4 py-2 rounded-lg hover:bg-[#1a1a1a] transition flex items-center gap-2"
           >
             ← Voltar
