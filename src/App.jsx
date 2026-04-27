@@ -32,8 +32,8 @@ export default function App() {
           </ProtectedRoute>
         }
       >
-        {/* INÍCIO = MENU LATERAL */}
-        <Route path="/" element={<div />} />
+        {/* INÍCIO = MENU */}
+        <Route path="/" element={<Navigate to="/dashboard" replace />} />
 
         {/* OUTRAS PÁGINAS */}
         <Route path="/dashboard" element={<Dashboard />} />
@@ -45,6 +45,9 @@ export default function App() {
         <Route path="/relatorio-categorias" element={<RelatorioCategorias />} />
         <Route path="/configuracoes" element={<Configuracoes />} />
         <Route path="/variacao-despesas" element={<VariacaoDespesas />} />
+
+        {/* QUALQUER ROTA INVÁLIDA → MENU */}
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Route>
 
     </Routes>

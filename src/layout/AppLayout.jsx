@@ -10,10 +10,9 @@ export default function AppLayout() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  // 👉 Página inicial REAL da app (menu lateral)
   const isInicio = location.pathname === "/";
 
-  // PROTEÇÃO DE SESSÃO
+  // 🔐 PROTEÇÃO DE SESSÃO
   useEffect(() => {
     async function check() {
       const { data } = await supabase.auth.getUser();
@@ -25,6 +24,20 @@ export default function AppLayout() {
     }
     check();
   }, []);
+
+  // 🔙 FORÇAR BOTÃO VOLTAR DO ANDROID → MENU
+  useEffect(() => {
+    const handleBackButton = (event) => {
+      event.preventDefault();
+      navigate("/dashboard", { replace: true });
+    };
+
+    window.addEventListener("popstate", handleBackButton);
+
+    return () => {
+      window.removeEventListener("popstate", handleBackButton);
+    };
+  }, [navigate]);
 
   const terminarSessao = async () => {
     await supabase.auth.signOut();
@@ -76,7 +89,6 @@ export default function AppLayout() {
         {/* MENU */}
         <nav className="flex flex-col gap-2 md:gap-3 text-gray-300">
 
-          {/* INÍCIO — agora é "/" */}
           <Link
             to="/"
             onClick={() => setMenuOpen(false)}
@@ -101,7 +113,7 @@ export default function AppLayout() {
             Categorias
           </Link>
 
-          {/* SEPARADOR COLAPSÁVEL */}
+          {/* RELATÓRIOS */}
           <div
             className="mt-4 mb-1 text-gray-500 uppercase text-xs tracking-wider flex items-center justify-between cursor-pointer select-none"
             onClick={() => setOpenReports(!openReports)}
@@ -112,7 +124,6 @@ export default function AppLayout() {
             </span>
           </div>
 
-          {/* GRUPO COLAPSÁVEL */}
           <div
             className={`
               flex flex-col gap-2 overflow-hidden transition-all duration-300
@@ -177,7 +188,6 @@ export default function AppLayout() {
           ${isInicio ? "p-0 md:ml-64" : "p-4 md:p-8 md:ml-64"}
         `}
       >
-        {/* BOTÃO VOLTAR */}
         {!isInicio && (
           <button
             onClick={() => navigate("/")}
