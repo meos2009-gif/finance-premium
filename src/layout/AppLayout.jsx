@@ -12,7 +12,7 @@ export default function AppLayout() {
 
   const isInicio = location.pathname === "/";
 
-  // PROTEÇÃO DE SESSÃO
+  // 🔐 PROTEÇÃO DE SESSÃO
   useEffect(() => {
     async function check() {
       const { data } = await supabase.auth.getUser();
@@ -25,11 +25,18 @@ export default function AppLayout() {
     check();
   }, []);
 
-  // 🔙 FORÇAR BOTÃO VOLTAR DO ANDROID → MENU ("/")
+  // 🔙 BACK BUTTON INTELIGENTE (Android)
   useEffect(() => {
     const handleBackButton = (event) => {
       event.preventDefault();
-      navigate("/", { replace: true });
+
+      if (location.pathname !== "/") {
+        // Se NÃO estás no menu → volta normalmente
+        navigate(-1);
+      } else {
+        // Se já estás no menu → deixa o Android fechar a app
+        window.history.go(-1);
+      }
     };
 
     window.addEventListener("popstate", handleBackButton);
@@ -37,7 +44,7 @@ export default function AppLayout() {
     return () => {
       window.removeEventListener("popstate", handleBackButton);
     };
-  }, [navigate]);
+  }, [location.pathname, navigate]);
 
   const terminarSessao = async () => {
     await supabase.auth.signOut();
