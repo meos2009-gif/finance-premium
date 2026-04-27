@@ -6,7 +6,9 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 
-import Inicio from "./pages/Inicio"; // MENU REAL
+import Menu from "./pages/Menu"; // MENU REAL
+import Inicio from "./pages/Inicio"; // Boas-vindas opcional
+
 import Dashboard from "./pages/Dashboard";
 import Receitas from "./pages/Receitas";
 import Despesas from "./pages/Despesas";
@@ -33,8 +35,11 @@ export default function App() {
           </ProtectedRoute>
         }
       >
-        {/* MENU / PÁGINA INICIAL */}
-        <Route path="/" element={<Inicio />} />
+        {/* MENU = PÁGINA INICIAL */}
+        <Route path="/" element={<Menu />} />
+
+        {/* PÁGINA DE BOAS-VINDAS OPCIONAL */}
+        <Route path="/welcome" element={<Inicio />} />
 
         {/* OUTRAS PÁGINAS */}
         <Route path="/dashboard" element={<Dashboard />} />
