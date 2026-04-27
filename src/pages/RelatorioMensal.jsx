@@ -91,15 +91,19 @@ export default function RelatorioMensal() {
   const diasNoMes = new Date(anoSelecionado, mesSelecionado + 1, 0).getDate();
   const dias = Array.from({ length: diasNoMes }, (_, i) => i + 1);
 
+  // GRÁFICO DIÁRIO — CORRIGIDO
   const valoresPorDia = dias.map((dia) => {
-    return despesasMes
+    const total = despesasMes
       .filter((t) => {
         const dataLocal = new Date(t.date + "T00:00:00");
         return dataLocal.getDate() === dia;
       })
       .reduce((acc, t) => acc + Number(t.amount), 0);
+
+    return Number(total.toFixed(2));
   });
 
+  // TOP CATEGORIAS
   const gastosPorCategoria = {};
   despesasMes.forEach((t) => {
     if (!gastosPorCategoria[t.category_id]) gastosPorCategoria[t.category_id] = 0;
@@ -114,6 +118,9 @@ export default function RelatorioMensal() {
     .sort((a, b) => b.valor - a.valor)
     .slice(0, 5);
 
+  const categoriaPredominante = topCategorias.length > 0 ? topCategorias[0] : null;
+
+  // TOP EMPRESAS
   const gastosPorEmpresa = {};
   despesasMes.forEach((t) => {
     const empresaObj = empresas.find((e) => e.id === t.empresa_id);
@@ -131,6 +138,7 @@ export default function RelatorioMensal() {
   return (
     <div className="text-white flex flex-col gap-10 px-4 md:px-0 w-full">
 
+      {/* TÍTULO + FILTROS */}
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold text-[#facc15]">
           Relatório Mensal
@@ -144,6 +152,7 @@ export default function RelatorioMensal() {
         </button>
       </div>
 
+      {/* FILTROS */}
       <div className="flex gap-4">
         <select
           value={mesSelecionado}
@@ -166,7 +175,61 @@ export default function RelatorioMensal() {
         </select>
       </div>
 
-      {/* GRÁFICO DIÁRIO — CORRIGIDO */}
+      {/* CARDS PRINCIPAIS */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="bg-[#111] border border-[#222] p-6 rounded-xl">
+          <h2 className="text-gray-400">Receitas</h2>
+          <p className="text-3xl font-bold text-green-400">{totalReceitas.toFixed(2)} €</p>
+        </div>
+
+        <div className="bg-[#111] border border-[#222] p-6 rounded-xl">
+          <h2 className="text-gray-400">Despesas</h2>
+          <p className="text-3xl font-bold text-red-400">{totalDespesas.toFixed(2)} €</p>
+        </div>
+
+        <div className="bg-[#111] border border-[#222] p-6 rounded-xl">
+          <h2 className="text-gray-400">Saldo</h2>
+          <p className={`text-3xl font-bold ${saldo >= 0 ? "text-green-400" : "text-red-400"}`}>
+            {saldo.toFixed(2)} €
+          </p>
+        </div>
+      </div>
+
+      {/* QUADRO PREMIUM — DESPESAS MENSAIS + CATEGORIA PRINCIPAL */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+        <div className="bg-[#111] border border-[#222] p-6 rounded-xl">
+          <h2 className="text-gray-400">Total de Despesas do Mês</h2>
+          <p className="text-3xl font-bold text-red-400">
+            {totalDespesas.toFixed(2)} €
+          </p>
+        </div>
+
+        <div className="bg-[#111] border border-[#222] p-6 rounded-xl">
+          <h2 className="text-gray-400">Categoria Predominante</h2>
+
+          {categoriaPredominante ? (
+            <div>
+              <p className="text-xl font-bold text-[#facc15]">
+                {categoriaPredominante.nome}
+              </p>
+
+              <p className="text-lg font-bold mt-1">
+                {categoriaPredominante.valor.toFixed(2)} €
+              </p>
+
+              <p className="text-gray-400 mt-1">
+                {((categoriaPredominante.valor / totalDespesas) * 100).toFixed(1)}% do total
+              </p>
+            </div>
+          ) : (
+            <p className="text-gray-400">Sem dados este mês</p>
+          )}
+        </div>
+
+      </div>
+
+      {/* GRÁFICO DIÁRIO */}
       <div className="bg-[#111] border border-[#222] p-6 rounded-xl">
         <h2 className="text-xl font-bold mb-4 text-[#facc15]">Evolução Diária das Despesas</h2>
 
@@ -181,14 +244,15 @@ export default function RelatorioMensal() {
             xaxis: { categories: dias },
             yaxis: {
               labels: {
-                formatter: (value) => value.toFixed(2) // CORREÇÃO DOS ZEROS
-              }
+                formatter: (value) => value.toFixed(2),
+              },
             },
             grid: { borderColor: "#333" },
           }}
         />
       </div>
 
+      {/* TOP CATEGORIAS */}
       <div className="bg-[#111] border border-[#222] p-6 rounded-xl">
         <h2 className="text-xl font-bold mb-4 text-[#facc15]">Top Categorias</h2>
         <ul className="space-y-2">
@@ -201,6 +265,7 @@ export default function RelatorioMensal() {
         </ul>
       </div>
 
+      {/* TOP EMPRESAS */}
       <div className="bg-[#111] border border-[#222] p-6 rounded-xl">
         <h2 className="text-xl font-bold mb-4 text-[#facc15]">Top Empresas</h2>
         <ul className="space-y-2">
@@ -213,6 +278,7 @@ export default function RelatorioMensal() {
         </ul>
       </div>
 
+      {/* TEMPLATE PDF */}
       <div
         id="pdf-template"
         style={{
@@ -232,23 +298,3 @@ export default function RelatorioMensal() {
 
         <p>Receitas: {totalReceitas.toFixed(2)} €</p>
         <p>Despesas: {totalDespesas.toFixed(2)} €</p>
-        <p>Saldo: {saldo.toFixed(2)} €</p>
-
-        <h2 style={{ marginTop: "20px" }}>Top Categorias</h2>
-        <ul>
-          {topCategorias.map((c, i) => (
-            <li key={i}>{c.nome}: {c.valor.toFixed(2)} €</li>
-          ))}
-        </ul>
-
-        <h2 style={{ marginTop: "20px" }}>Top Empresas</h2>
-        <ul>
-          {topEmpresas.map((e, i) => (
-            <li key={i}>{e.empresa}: {e.valor.toFixed(2)} €</li>
-          ))}
-        </ul>
-      </div>
-
-    </div>
-  );
-}
