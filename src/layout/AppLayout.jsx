@@ -29,7 +29,7 @@ export default function AppLayout() {
   useEffect(() => {
     const handleBackButton = (event) => {
       event.preventDefault();
-      navigate("/dashboard", { replace: true });
+      navigate("/", { replace: true });
     };
 
     window.addEventListener("popstate", handleBackButton);
