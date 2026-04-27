@@ -49,14 +49,19 @@ export default function RelatorioCategorias() {
 
   const totalDespesas = categoriasValores.reduce((acc, v) => acc + v, 0);
 
-  const tabelaCategorias = Object.entries(totaisPorCategoria).map(([id, valor]) => {
-    const cat = categorias.find((c) => c.id === id);
-    return {
-      categoria: cat ? cat.name : "Categoria",
-      valor: valor.toFixed(2),
-      percent: totalDespesas > 0 ? ((valor / totalDespesas) * 100).toFixed(1) + "%" : "0%",
-    };
-  });
+  // -----------------------------
+  // TABELA ORDENADA (MAIOR → MENOR)
+  // -----------------------------
+  const tabelaCategorias = Object.entries(totaisPorCategoria)
+    .map(([id, valor]) => {
+      const cat = categorias.find((c) => c.id === id);
+      return {
+        categoria: cat ? cat.name : "Categoria",
+        valor: Number(valor),
+        percent: totalDespesas > 0 ? ((valor / totalDespesas) * 100).toFixed(1) + "%" : "0%",
+      };
+    })
+    .sort((a, b) => b.valor - a.valor); // <-- ORDENAR DO MAIOR PARA O MENOR
 
   return (
     <div className="text-white flex flex-col gap-10 px-4 md:px-0 w-full">
@@ -87,7 +92,7 @@ export default function RelatorioCategorias() {
         </div>
       </div>
 
-      {/* GRÁFICO DE BARRAS */}
+      {/* GRÁFICO DE BARRAS — CORRIGIDO */}
       <div className="bg-[#111] border border-[#222] p-6 rounded-xl">
         <h2 className="text-xl font-bold mb-4 text-[#facc15]">Gastos por Categoria</h2>
 
@@ -97,36 +102,44 @@ export default function RelatorioCategorias() {
           series={[
             {
               name: "Despesas",
-              data: categoriasValores,
+              data: tabelaCategorias.map((c) => c.valor),
             },
           ]}
           options={{
             chart: { background: "transparent", foreColor: "#fff" },
             colors: ["#facc15"],
-            xaxis: { categories: categoriasLabels },
+            xaxis: { categories: tabelaCategorias.map((c) => c.categoria) },
+            yaxis: {
+              labels: {
+                formatter: (value) => value.toFixed(2)
+              }
+            },
             grid: { borderColor: "#333" },
           }}
         />
       </div>
 
-      {/* GRÁFICO DONUT */}
+      {/* GRÁFICO DONUT — CORRIGIDO */}
       <div className="bg-[#111] border border-[#222] p-6 rounded-xl">
         <h2 className="text-xl font-bold mb-4 text-[#facc15]">Distribuição Percentual</h2>
 
         <Chart
           type="donut"
           height={350}
-          series={categoriasValores}
+          series={tabelaCategorias.map((c) => c.valor)}
           options={{
-            labels: categoriasLabels,
+            labels: tabelaCategorias.map((c) => c.categoria),
             chart: { background: "transparent", foreColor: "#fff" },
             colors: ["#facc15", "#22c55e", "#3b82f6", "#ef4444", "#a855f7", "#14b8a6"],
             legend: { labels: { colors: "#fff" } },
+            dataLabels: {
+              formatter: (value) => value.toFixed(1) + "%"
+            }
           }}
         />
       </div>
 
-      {/* TABELA PREMIUM */}
+      {/* TABELA PREMIUM — ORDENADA */}
       <div className="bg-[#111] border border-[#222] p-6 rounded-xl">
         <h2 className="text-xl font-bold mb-4 text-[#facc15]">Tabela por Categoria</h2>
 
@@ -142,7 +155,7 @@ export default function RelatorioCategorias() {
             {tabelaCategorias.map((c, i) => (
               <tr key={i} className="border-b border-[#222]">
                 <td className="py-2">{c.categoria}</td>
-                <td className="py-2">{c.valor}</td>
+                <td className="py-2">{c.valor.toFixed(2)}</td>
                 <td className="py-2">{c.percent}</td>
               </tr>
             ))}
