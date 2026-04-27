@@ -40,14 +40,7 @@ export default function RelatorioCategorias() {
     totaisPorCategoria[t.category_id] += Number(t.amount);
   });
 
-  const categoriasLabels = Object.keys(totaisPorCategoria).map((id) => {
-    const cat = categorias.find((c) => c.id === id);
-    return cat ? cat.name : "Categoria";
-  });
-
-  const categoriasValores = Object.values(totaisPorCategoria);
-
-  const totalDespesas = categoriasValores.reduce((acc, v) => acc + v, 0);
+  const totalDespesas = Object.values(totaisPorCategoria).reduce((acc, v) => acc + v, 0);
 
   // -----------------------------
   // TABELA ORDENADA (MAIOR → MENOR)
@@ -57,11 +50,15 @@ export default function RelatorioCategorias() {
       const cat = categorias.find((c) => c.id === id);
       return {
         categoria: cat ? cat.name : "Categoria",
-        valor: Number(valor),
+        valor: Number(valor), // <-- valor limpo
         percent: totalDespesas > 0 ? ((valor / totalDespesas) * 100).toFixed(1) + "%" : "0%",
       };
     })
     .sort((a, b) => b.valor - a.valor); // <-- ORDENAR DO MAIOR PARA O MENOR
+
+  // Labels e valores já ordenados
+  const categoriasLabels = tabelaCategorias.map((c) => c.categoria);
+  const categoriasValores = tabelaCategorias.map((c) => Number(c.valor.toFixed(2)));
 
   return (
     <div className="text-white flex flex-col gap-10 px-4 md:px-0 w-full">
@@ -102,17 +99,21 @@ export default function RelatorioCategorias() {
           series={[
             {
               name: "Despesas",
-              data: tabelaCategorias.map((c) => c.valor),
+              data: categoriasValores, // <-- valores limpos e arredondados
             },
           ]}
           options={{
             chart: { background: "transparent", foreColor: "#fff" },
             colors: ["#facc15"],
-            xaxis: { categories: tabelaCategorias.map((c) => c.categoria) },
+            xaxis: { categories: categoriasLabels },
             yaxis: {
               labels: {
-                formatter: (value) => value.toFixed(2)
-              }
+                formatter: (value) => value.toFixed(2), // <-- SEM ZEROS INFINITOS
+              },
+            },
+            dataLabels: {
+              formatter: (value) => value.toFixed(2), // <-- valores em cima das barras limpos
+              style: { colors: ["#fff"] },
             },
             grid: { borderColor: "#333" },
           }}
@@ -126,15 +127,15 @@ export default function RelatorioCategorias() {
         <Chart
           type="donut"
           height={350}
-          series={tabelaCategorias.map((c) => c.valor)}
+          series={categoriasValores}
           options={{
-            labels: tabelaCategorias.map((c) => c.categoria),
+            labels: categoriasLabels,
             chart: { background: "transparent", foreColor: "#fff" },
             colors: ["#facc15", "#22c55e", "#3b82f6", "#ef4444", "#a855f7", "#14b8a6"],
             legend: { labels: { colors: "#fff" } },
             dataLabels: {
-              formatter: (value) => value.toFixed(1) + "%"
-            }
+              formatter: (value) => value.toFixed(1) + "%", // <-- percentagens limpas
+            },
           }}
         />
       </div>
