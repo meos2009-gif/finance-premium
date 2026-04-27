@@ -298,3 +298,23 @@ export default function RelatorioMensal() {
 
         <p>Receitas: {totalReceitas.toFixed(2)} €</p>
         <p>Despesas: {totalDespesas.toFixed(2)} €</p>
+        <p>Saldo: {saldo.toFixed(2)} €</p>
+
+        <h2 style={{ marginTop: "20px" }}>Top Categorias</h2>
+        <ul>
+          {topCategorias.map((c, i) => (
+            <li key={i}>{c.nome}: {c.valor.toFixed(2)} €</li>
+          ))}
+        </ul>
+
+        <h2 style={{ marginTop: "20px" }}>Top Empresas</h2>
+        <ul>
+          {topEmpresas.map((e, i) => (
+            <li key={i}>{e.empresa}: {e.valor.toFixed(2)} €</li>
+          ))}
+        </ul>
+      </div>
+
+    </div>
+  );
+}
