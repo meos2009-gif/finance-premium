@@ -6,7 +6,8 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 
-import Menu from "./pages/Menu"; // <- MENU MINIMALISTA
+import Inicio from "./pages/Inicio"; // MENU MINIMALISTA
+
 import Dashboard from "./pages/Dashboard";
 import Receitas from "./pages/Receitas";
 import Despesas from "./pages/Despesas";
@@ -34,7 +35,7 @@ export default function App() {
         }
       >
         {/* MENU = PÁGINA INICIAL */}
-        <Route path="/" element={<Menu />} />
+        <Route path="/" element={<Inicio />} />
 
         {/* OUTRAS PÁGINAS */}
         <Route path="/dashboard" element={<Dashboard />} />
