@@ -12,7 +12,7 @@ export default function AppLayout() {
 
   const isInicio = location.pathname === "/";
 
-  // 🔐 PROTEÇÃO DE SESSÃO
+  // PROTEÇÃO DE SESSÃO
   useEffect(() => {
     async function check() {
       const { data } = await supabase.auth.getUser();
@@ -25,7 +25,7 @@ export default function AppLayout() {
     check();
   }, []);
 
-  // 🔙 FORÇAR BOTÃO VOLTAR DO ANDROID → MENU
+  // 🔙 FORÇAR BOTÃO VOLTAR DO ANDROID → MENU ("/")
   useEffect(() => {
     const handleBackButton = (event) => {
       event.preventDefault();

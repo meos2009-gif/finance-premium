@@ -6,6 +6,7 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 
+import Inicio from "./pages/Inicio"; // MENU REAL
 import Dashboard from "./pages/Dashboard";
 import Receitas from "./pages/Receitas";
 import Despesas from "./pages/Despesas";
@@ -32,8 +33,8 @@ export default function App() {
           </ProtectedRoute>
         }
       >
-        {/* INÍCIO = MENU */}
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        {/* MENU / PÁGINA INICIAL */}
+        <Route path="/" element={<Inicio />} />
 
         {/* OUTRAS PÁGINAS */}
         <Route path="/dashboard" element={<Dashboard />} />
@@ -47,7 +48,7 @@ export default function App() {
         <Route path="/variacao-despesas" element={<VariacaoDespesas />} />
 
         {/* QUALQUER ROTA INVÁLIDA → MENU */}
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
 
     </Routes>
