@@ -138,12 +138,12 @@ export default function AppLayout() {
             `}
           >
             <Link
-              to="/dashboard"
-              onClick={() => setMenuOpen(false)}
+            to="/dashboard"
+  onClick={() => setMenuOpen(false)}
               className="hover:bg-[#1a1a1a] p-2 md:p-3 rounded-lg flex items-center gap-2"
-            >
-              📊 <span>Dashboard</span>
-            </Link>
+>
+          📊 <span>Relatório Anual</span>
+         </Link>
 
             <Link
               to="/relatorio-mensal"
