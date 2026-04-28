@@ -1,10 +1,14 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../supabaseClient";
+import Chart from "react-apexcharts";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 
 export default function Dashboard() {
   const [transacoes, setTransacoes] = useState([]);
+  const [categorias, setCategorias] = useState([]);
+  const [empresas, setEmpresas] = useState([]);
+
   const [anoSelecionado, setAnoSelecionado] = useState(new Date().getFullYear());
 
   const meses = [
@@ -12,6 +16,7 @@ export default function Dashboard() {
     "Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"
   ];
 
+  // 🔥 CARREGAR TRANSAÇÕES + CATEGORIAS + EMPRESAS
   useEffect(() => {
     async function load() {
       const { data: session } = await supabase.auth.getUser();
@@ -23,12 +28,24 @@ export default function Dashboard() {
         .from("transactions")
         .select("*")
         .eq("user_id", userId);
-
       setTransacoes(trans || []);
+
+      const { data: cat } = await supabase
+        .from("categories")
+        .select("*")
+        .eq("user_id", userId);
+      setCategorias(cat || []);
+
+      const { data: emp } = await supabase
+        .from("empresas")
+        .select("*")
+        .eq("user_id", userId);
+      setEmpresas(emp || []);
     }
     load();
   }, []);
 
+  // 🔥 FILTRAR POR ANO
   const receitasAno = transacoes.filter(
     (t) => t.type === "income" && new Date(t.date).getFullYear() === anoSelecionado
   );
@@ -41,7 +58,20 @@ export default function Dashboard() {
   const totalDespesas = despesasAno.reduce((acc, d) => acc + Number(d.amount), 0);
   const saldo = totalReceitas - totalDespesas;
 
-  // TOP CATEGORIAS
+  // 🔥 GRÁFICO ANUAL (BARRAS)
+  const receitasPorMes = Array.from({ length: 12 }, (_, i) =>
+    receitasAno
+      .filter((t) => new Date(t.date).getMonth() === i)
+      .reduce((acc, t) => acc + Number(t.amount), 0)
+  );
+
+  const despesasPorMes = Array.from({ length: 12 }, (_, i) =>
+    despesasAno
+      .filter((t) => new Date(t.date).getMonth() === i)
+      .reduce((acc, t) => acc + Number(t.amount), 0)
+  );
+
+  // 🔥 TOP CATEGORIAS (NOMES REAIS)
   const gastosPorCategoria = {};
   despesasAno.forEach((t) => {
     if (!gastosPorCategoria[t.category_id]) gastosPorCategoria[t.category_id] = 0;
@@ -50,16 +80,18 @@ export default function Dashboard() {
 
   const topCategorias = Object.entries(gastosPorCategoria)
     .map(([id, valor]) => ({
-      nome: id,
+      nome: categorias.find((c) => c.id === id)?.name || "Categoria",
       valor,
     }))
     .sort((a, b) => b.valor - a.valor)
     .slice(0, 5);
 
-  // TOP EMPRESAS
+  // 🔥 TOP EMPRESAS (NOMES REAIS)
   const gastosPorEmpresa = {};
   despesasAno.forEach((t) => {
-    const nomeEmpresa = t.empresa_id || "Sem empresa";
+    const empresaObj = empresas.find((e) => e.id === t.empresa_id);
+    const nomeEmpresa = empresaObj ? empresaObj.name : "Sem empresa";
+
     if (!gastosPorEmpresa[nomeEmpresa]) gastosPorEmpresa[nomeEmpresa] = 0;
     gastosPorEmpresa[nomeEmpresa] += Number(t.amount);
   });
@@ -69,7 +101,7 @@ export default function Dashboard() {
     .sort((a, b) => b.valor - a.valor)
     .slice(0, 5);
 
-  // ⭐ EXPORTAR PDF PREMIUM
+  // 🔥 EXPORTAR PDF PREMIUM
   const exportarPDF = async () => {
     const elemento = document.getElementById("pdf-template");
     if (!elemento) return;
@@ -138,6 +170,52 @@ export default function Dashboard() {
             {saldo.toFixed(2)} €
           </p>
         </div>
+      </div>
+
+      {/* GRÁFICO ANUAL */}
+      <div className="bg-[#111] border border-[#222] p-6 rounded-xl">
+        <h2 className="text-xl font-bold mb-4 text-[#facc15]">Evolução Anual</h2>
+
+        <Chart
+          type="bar"
+          height={350}
+          series={[
+            { name: "Receitas", data: receitasPorMes },
+            { name: "Despesas", data: despesasPorMes }
+          ]}
+          options={{
+            chart: { background: "transparent", foreColor: "#fff" },
+            colors: ["#22c55e", "#ef4444"],
+            xaxis: { categories: meses },
+            grid: { borderColor: "#333" },
+          }}
+        />
+      </div>
+
+      {/* TOP CATEGORIAS */}
+      <div className="bg-[#111] border border-[#222] p-6 rounded-xl">
+        <h2 className="text-xl font-bold mb-4 text-[#facc15]">Top Categorias</h2>
+        <ul className="space-y-2">
+          {topCategorias.map((c, i) => (
+            <li key={i} className="flex justify-between border-b border-[#222] pb-2">
+              <span>{c.nome}</span>
+              <span className="font-bold">{c.valor.toFixed(2)} €</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      {/* TOP EMPRESAS */}
+      <div className="bg-[#111] border border-[#222] p-6 rounded-xl">
+        <h2 className="text-xl font-bold mb-4 text-[#facc15]">Top Empresas</h2>
+        <ul className="space-y-2">
+          {topEmpresas.map((e, i) => (
+            <li key={i} className="flex justify-between border-b border-[#222] pb-2">
+              <span>{e.empresa}</span>
+              <span className="font-bold">{e.valor.toFixed(2)} €</span>
+            </li>
+          ))}
+        </ul>
       </div>
 
       {/* TEMPLATE PDF PREMIUM */}
@@ -230,13 +308,8 @@ export default function Dashboard() {
 
           <tbody>
             {Array.from({ length: 12 }).map((_, i) => {
-              const receitas = transacoes
-                .filter((t) => t.type === "income" && new Date(t.date).getMonth() === i)
-                .reduce((acc, t) => acc + Number(t.amount), 0);
-
-              const despesas = transacoes
-                .filter((t) => t.type === "expense" && new Date(t.date).getMonth() === i)
-                .reduce((acc, t) => acc + Number(t.amount), 0);
+              const receitas = receitasPorMes[i];
+              const despesas = despesasPorMes[i];
 
               return (
                 <tr key={i}>
