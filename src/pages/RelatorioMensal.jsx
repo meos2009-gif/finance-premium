@@ -12,6 +12,10 @@ export default function RelatorioMensal() {
   const [mesSelecionado, setMesSelecionado] = useState(new Date().getMonth());
   const [anoSelecionado, setAnoSelecionado] = useState(new Date().getFullYear());
 
+  // ⭐ NOVO — PERÍODO DE DATAS
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+
   const meses = [
     "Janeiro","Fevereiro","Março","Abril","Maio","Junho",
     "Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"
@@ -70,38 +74,86 @@ export default function RelatorioMensal() {
     load();
   }, []);
 
+  // ⭐ FILTRO INTELIGENTE — PERÍODO OU MÊS/ANO
   const despesasMes = transacoes.filter((t) => {
     const d = new Date(t.date + "T00:00:00");
-    return t.type === "expense" &&
+
+    // Se período estiver selecionado → ignora mês/ano
+    if (startDate && endDate) {
+      const inicio = new Date(startDate);
+      const fim = new Date(endDate);
+      return t.type === "expense" && d >= inicio && d <= fim;
+    }
+
+    // Caso contrário → usa mês/ano normal
+    return (
+      t.type === "expense" &&
       d.getMonth() === mesSelecionado &&
-      d.getFullYear() === anoSelecionado;
+      d.getFullYear() === anoSelecionado
+    );
   });
 
   const receitasMes = transacoes.filter((t) => {
     const d = new Date(t.date + "T00:00:00");
-    return t.type === "income" &&
+
+    if (startDate && endDate) {
+      const inicio = new Date(startDate);
+      const fim = new Date(endDate);
+      return t.type === "income" && d >= inicio && d <= fim;
+    }
+
+    return (
+      t.type === "income" &&
       d.getMonth() === mesSelecionado &&
-      d.getFullYear() === anoSelecionado;
+      d.getFullYear() === anoSelecionado
+    );
   });
 
   const totalReceitas = receitasMes.reduce((acc, r) => acc + Number(r.amount), 0);
   const totalDespesas = despesasMes.reduce((acc, d) => acc + Number(d.amount), 0);
   const saldo = totalReceitas - totalDespesas;
 
-  const diasNoMes = new Date(anoSelecionado, mesSelecionado + 1, 0).getDate();
-  const dias = Array.from({ length: diasNoMes }, (_, i) => i + 1);
+  // ⭐ GRÁFICO DIÁRIO — se período estiver ativo, recalcula dinamicamente
+  let dias = [];
+  let valoresPorDia = [];
 
-  // GRÁFICO DIÁRIO — CORRIGIDO
-  const valoresPorDia = dias.map((dia) => {
-    const total = despesasMes
-      .filter((t) => {
-        const dataLocal = new Date(t.date + "T00:00:00");
-        return dataLocal.getDate() === dia;
-      })
-      .reduce((acc, t) => acc + Number(t.amount), 0);
+  if (startDate && endDate) {
+    const inicio = new Date(startDate);
+    const fim = new Date(endDate);
 
-    return Number(total.toFixed(2));
-  });
+    const diasPeriodo = [];
+    const cursor = new Date(inicio);
+
+    while (cursor <= fim) {
+      diasPeriodo.push(new Date(cursor));
+      cursor.setDate(cursor.getDate() + 1);
+    }
+
+    dias = diasPeriodo.map((d) => d.getDate());
+
+    valoresPorDia = diasPeriodo.map((diaObj) => {
+      const total = despesasMes
+        .filter((t) => new Date(t.date + "T00:00:00").toDateString() === diaObj.toDateString())
+        .reduce((acc, t) => acc + Number(t.amount), 0);
+
+      return Number(total.toFixed(2));
+    });
+  } else {
+    // MODO MENSAL NORMAL
+    const diasNoMes = new Date(anoSelecionado, mesSelecionado + 1, 0).getDate();
+    dias = Array.from({ length: diasNoMes }, (_, i) => i + 1);
+
+    valoresPorDia = dias.map((dia) => {
+      const total = despesasMes
+        .filter((t) => {
+          const dataLocal = new Date(t.date + "T00:00:00");
+          return dataLocal.getDate() === dia;
+        })
+        .reduce((acc, t) => acc + Number(t.amount), 0);
+
+      return Number(total.toFixed(2));
+    });
+  }
 
   // TOP CATEGORIAS
   const gastosPorCategoria = {};
@@ -138,7 +190,7 @@ export default function RelatorioMensal() {
   return (
     <div className="text-white flex flex-col gap-10 px-4 md:px-0 w-full">
 
-      {/* TÍTULO + FILTROS */}
+      {/* TÍTULO + PDF */}
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold text-[#facc15]">
           Relatório Mensal
@@ -152,8 +204,10 @@ export default function RelatorioMensal() {
         </button>
       </div>
 
-      {/* FILTROS */}
-      <div className="flex gap-4">
+      {/* ⭐ FILTROS — MÊS/ANO + PERÍODO */}
+      <div className="flex flex-wrap gap-4">
+
+        {/* MÊS */}
         <select
           value={mesSelecionado}
           onChange={(e) => setMesSelecionado(Number(e.target.value))}
@@ -164,6 +218,7 @@ export default function RelatorioMensal() {
           ))}
         </select>
 
+        {/* ANO */}
         <select
           value={anoSelecionado}
           onChange={(e) => setAnoSelecionado(Number(e.target.value))}
@@ -173,6 +228,29 @@ export default function RelatorioMensal() {
             <option key={ano} value={ano}>{ano}</option>
           ))}
         </select>
+
+        {/* ⭐ DATA INICIAL */}
+        <div className="flex flex-col">
+          <label className="text-gray-400 text-sm">Data Inicial</label>
+          <input
+            type="date"
+            value={startDate}
+            onChange={(e) => setStartDate(e.target.value)}
+            className="bg-[#111] border border-[#333] p-2 rounded"
+          />
+        </div>
+
+        {/* ⭐ DATA FINAL */}
+        <div className="flex flex-col">
+          <label className="text-gray-400 text-sm">Data Final</label>
+          <input
+            type="date"
+            value={endDate}
+            onChange={(e) => setEndDate(e.target.value)}
+            className="bg-[#111] border border-[#333] p-2 rounded"
+          />
+        </div>
+
       </div>
 
       {/* CARDS PRINCIPAIS */}
@@ -195,11 +273,11 @@ export default function RelatorioMensal() {
         </div>
       </div>
 
-      {/* QUADRO PREMIUM — DESPESAS MENSAIS + CATEGORIA PRINCIPAL */}
+      {/* QUADRO PREMIUM */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
         <div className="bg-[#111] border border-[#222] p-6 rounded-xl">
-          <h2 className="text-gray-400">Total de Despesas do Mês</h2>
+          <h2 className="text-gray-400">Total de Despesas</h2>
           <p className="text-3xl font-bold text-red-400">
             {totalDespesas.toFixed(2)} €
           </p>
@@ -223,7 +301,7 @@ export default function RelatorioMensal() {
               </p>
             </div>
           ) : (
-            <p className="text-gray-400">Sem dados este mês</p>
+            <p className="text-gray-400">Sem dados</p>
           )}
         </div>
 
