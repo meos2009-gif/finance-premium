@@ -16,7 +16,6 @@ export default function Dashboard() {
     "Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"
   ];
 
-  // 🔥 CARREGAR TRANSAÇÕES + CATEGORIAS + EMPRESAS
   useEffect(() => {
     async function load() {
       const { data: session } = await supabase.auth.getUser();
@@ -45,33 +44,41 @@ export default function Dashboard() {
     load();
   }, []);
 
-  // 🔥 FILTRAR POR ANO
-  const receitasAno = transacoes.filter(
-    (t) => t.type === "income" && new Date(t.date).getFullYear() === anoSelecionado
-  );
+  // FILTRAR POR ANO (com T00:00:00 para evitar bugs de fuso horário)
+  const receitasAno = transacoes.filter((t) => {
+    const d = new Date(t.date + "T00:00:00");
+    return t.type === "income" && d.getFullYear() === anoSelecionado;
+  });
 
-  const despesasAno = transacoes.filter(
-    (t) => t.type === "expense" && new Date(t.date).getFullYear() === anoSelecionado
-  );
+  const despesasAno = transacoes.filter((t) => {
+    const d = new Date(t.date + "T00:00:00");
+    return t.type === "expense" && d.getFullYear() === anoSelecionado;
+  });
 
   const totalReceitas = receitasAno.reduce((acc, r) => acc + Number(r.amount), 0);
   const totalDespesas = despesasAno.reduce((acc, d) => acc + Number(d.amount), 0);
   const saldo = totalReceitas - totalDespesas;
 
-  // 🔥 GRÁFICO ANUAL (BARRAS)
+  // GRÁFICO ANUAL (barras)
   const receitasPorMes = Array.from({ length: 12 }, (_, i) =>
     receitasAno
-      .filter((t) => new Date(t.date).getMonth() === i)
+      .filter((t) => {
+        const d = new Date(t.date + "T00:00:00");
+        return d.getMonth() === i;
+      })
       .reduce((acc, t) => acc + Number(t.amount), 0)
   );
 
   const despesasPorMes = Array.from({ length: 12 }, (_, i) =>
     despesasAno
-      .filter((t) => new Date(t.date).getMonth() === i)
+      .filter((t) => {
+        const d = new Date(t.date + "T00:00:00");
+        return d.getMonth() === i;
+      })
       .reduce((acc, t) => acc + Number(t.amount), 0)
   );
 
-  // 🔥 TOP CATEGORIAS (NOMES REAIS)
+  // TOP CATEGORIAS (nomes reais)
   const gastosPorCategoria = {};
   despesasAno.forEach((t) => {
     if (!gastosPorCategoria[t.category_id]) gastosPorCategoria[t.category_id] = 0;
@@ -86,7 +93,7 @@ export default function Dashboard() {
     .sort((a, b) => b.valor - a.valor)
     .slice(0, 5);
 
-  // 🔥 TOP EMPRESAS (NOMES REAIS)
+  // TOP EMPRESAS (nomes reais)
   const gastosPorEmpresa = {};
   despesasAno.forEach((t) => {
     const empresaObj = empresas.find((e) => e.id === t.empresa_id);
@@ -101,14 +108,32 @@ export default function Dashboard() {
     .sort((a, b) => b.valor - a.valor)
     .slice(0, 5);
 
-  // 🔥 EXPORTAR PDF PREMIUM
+  // EXPORTAR PDF a partir do que vês na página
   const exportarPDF = async () => {
-    const elemento = document.getElementById("pdf-template");
-    if (!elemento) return;
+    const original = document.getElementById("relatorio-anual");
+    if (!original) return;
 
-    await new Promise((resolve) => setTimeout(resolve, 200));
+    const clone = original.cloneNode(true);
 
-    const canvas = await html2canvas(elemento, {
+    const container = document.createElement("div");
+    container.style.position = "absolute";
+    container.style.top = "-9999px";
+    container.style.left = "-9999px";
+    container.style.background = "#fff";
+    container.style.color = "#000";
+    container.style.padding = "20px";
+    container.style.width = "800px";
+
+    container.appendChild(clone);
+    document.body.appendChild(container);
+
+    container.querySelectorAll("*").forEach((el) => {
+      el.style.background = "transparent";
+      el.style.color = "#000";
+      if (el.style.borderColor) el.style.borderColor = "#000";
+    });
+
+    const canvas = await html2canvas(container, {
       scale: 2,
       backgroundColor: "#fff",
       useCORS: true
@@ -122,11 +147,15 @@ export default function Dashboard() {
 
     pdf.addImage(imgData, "PNG", 0, 0, larguraPDF, alturaImg);
     pdf.save(`Relatorio_Anual_${anoSelecionado}.pdf`);
+
+    document.body.removeChild(container);
   };
 
   return (
-    <div className="text-white flex flex-col gap-10 px-4 md:px-0 w-full">
-
+    <div
+      className="text-white flex flex-col gap-10 px-4 md:px-0 w-full"
+      id="relatorio-anual"
+    >
       {/* TÍTULO */}
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold text-[#facc15]">
@@ -188,6 +217,12 @@ export default function Dashboard() {
             colors: ["#22c55e", "#ef4444"],
             xaxis: { categories: meses },
             grid: { borderColor: "#333" },
+            plotOptions: {
+              bar: {
+                borderRadius: 6,
+                columnWidth: "45%",
+              }
+            }
           }}
         />
       </div>
@@ -216,121 +251,6 @@ export default function Dashboard() {
             </li>
           ))}
         </ul>
-      </div>
-
-      {/* TEMPLATE PDF PREMIUM */}
-      <div
-        id="pdf-template"
-        style={{
-          background: "#fff",
-          color: "#000",
-          padding: "40px",
-          width: "800px",
-          position: "absolute",
-          top: "0",
-          left: "0",
-          transform: "translateY(-200vh)",
-          fontFamily: "Arial, sans-serif"
-        }}
-      >
-
-        {/* CAPA */}
-        <div style={{ textAlign: "center", marginBottom: "40px" }}>
-          <h1 style={{ fontSize: "32px", fontWeight: "bold", marginBottom: "10px" }}>
-            Relatório Anual
-          </h1>
-
-          <h2 style={{ fontSize: "22px", color: "#444" }}>
-            Ano {anoSelecionado}
-          </h2>
-
-          <div
-            style={{
-              marginTop: "20px",
-              height: "4px",
-              width: "100%",
-              background: "#facc15"
-            }}
-          />
-        </div>
-
-        {/* RESUMO FINANCEIRO */}
-        <h2 style={{ fontSize: "20px", marginBottom: "10px" }}>Resumo Financeiro</h2>
-
-        <p><strong>Total de Receitas:</strong> {totalReceitas.toFixed(2)} €</p>
-        <p><strong>Total de Despesas:</strong> {totalDespesas.toFixed(2)} €</p>
-        <p><strong>Saldo Final:</strong> {saldo.toFixed(2)} €</p>
-
-        <div style={{ height: "2px", background: "#ddd", margin: "20px 0" }} />
-
-        {/* TOP CATEGORIAS */}
-        <h2 style={{ fontSize: "20px", marginBottom: "10px" }}>Top Categorias</h2>
-        <ul style={{ paddingLeft: "20px" }}>
-          {topCategorias.map((c, i) => (
-            <li key={i} style={{ marginBottom: "6px" }}>
-              <strong>{c.nome}</strong>: {c.valor.toFixed(2)} €
-            </li>
-          ))}
-        </ul>
-
-        <div style={{ height: "2px", background: "#ddd", margin: "20px 0" }} />
-
-        {/* TOP EMPRESAS */}
-        <h2 style={{ fontSize: "20px", marginBottom: "10px" }}>Top Empresas</h2>
-        <ul style={{ paddingLeft: "20px" }}>
-          {topEmpresas.map((e, i) => (
-            <li key={i} style={{ marginBottom: "6px" }}>
-              <strong>{e.empresa}</strong>: {e.valor.toFixed(2)} €
-            </li>
-          ))}
-        </ul>
-
-        <div style={{ height: "2px", background: "#ddd", margin: "20px 0" }} />
-
-        {/* TABELA ANUAL */}
-        <h2 style={{ fontSize: "20px", marginBottom: "10px" }}>Resumo Mensal</h2>
-
-        <table
-          style={{
-            width: "100%",
-            borderCollapse: "collapse",
-            fontSize: "14px"
-          }}
-        >
-          <thead>
-            <tr>
-              <th style={{ borderBottom: "2px solid #ccc", padding: "8px" }}>Mês</th>
-              <th style={{ borderBottom: "2px solid #ccc", padding: "8px" }}>Receitas</th>
-              <th style={{ borderBottom: "2px solid #ccc", padding: "8px" }}>Despesas</th>
-              <th style={{ borderBottom: "2px solid #ccc", padding: "8px" }}>Saldo</th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {Array.from({ length: 12 }).map((_, i) => {
-              const receitas = receitasPorMes[i];
-              const despesas = despesasPorMes[i];
-
-              return (
-                <tr key={i}>
-                  <td style={{ borderBottom: "1px solid #eee", padding: "8px" }}>
-                    {meses[i]}
-                  </td>
-                  <td style={{ borderBottom: "1px solid #eee", padding: "8px" }}>
-                    {receitas.toFixed(2)} €
-                  </td>
-                  <td style={{ borderBottom: "1px solid #eee", padding: "8px" }}>
-                    {despesas.toFixed(2)} €
-                  </td>
-                  <td style={{ borderBottom: "1px solid #eee", padding: "8px" }}>
-                    {(receitas - despesas).toFixed(2)} €
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-
       </div>
     </div>
   );
