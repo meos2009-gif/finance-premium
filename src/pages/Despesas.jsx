@@ -3,12 +3,11 @@ import { supabase } from "../supabaseClient";
 import PremiumForm from "../components/PremiumForm";
 import PremiumInput from "../components/PremiumInput";
 
-iimport * as pdfjsLib from "pdfjs-dist";
+// PDF.js — versão correta para Vite
+import { GlobalWorkerOptions, getDocument } from "pdfjs-dist";
 import workerSrc from "pdfjs-dist/build/pdf.worker.mjs?url";
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = workerSrc;
-
-pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
+GlobalWorkerOptions.workerSrc = workerSrc;
 
 export default function Despesas() {
   const [categorias, setCategorias] = useState([]);
