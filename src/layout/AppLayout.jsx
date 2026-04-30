@@ -1,5 +1,6 @@
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { supabase } from "../supabaseClient";
 
 export default function AppLayout() {
@@ -31,19 +32,14 @@ export default function AppLayout() {
       event.preventDefault();
 
       if (location.pathname !== "/") {
-        // Se NÃO estás no menu → volta normalmente
         navigate(-1);
       } else {
-        // Se já estás no menu → deixa o Android fechar a app
         window.history.go(-1);
       }
     };
 
     window.addEventListener("popstate", handleBackButton);
-
-    return () => {
-      window.removeEventListener("popstate", handleBackButton);
-    };
+    return () => window.removeEventListener("popstate", handleBackButton);
   }, [location.pathname, navigate]);
 
   const terminarSessao = async () => {
@@ -54,20 +50,26 @@ export default function AppLayout() {
   if (checkingAuth) return null;
 
   return (
-    <div className="flex min-h-screen bg-black text-white">
+    <div className="flex min-h-screen bg-black text-white relative">
+
+      {/* PORTAL GLOBAL PARA MODAIS */}
+      {createPortal(
+        <div id="global-modal-root" className="fixed inset-0 pointer-events-none z-[9999]"></div>,
+        document.body
+      )}
 
       {/* BOTÃO HAMBÚRGUER */}
       <button
-        className="md:hidden fixed top-4 left-4 z-50 bg-[#111] p-2 rounded-lg border border-[#333] shadow-lg active:scale-95 transition"
+        className="md:hidden fixed top-4 left-4 z-[200] bg-[#111] p-2 rounded-lg border border-[#333] shadow-lg active:scale-95 transition"
         onClick={() => setMenuOpen(true)}
       >
         ☰
       </button>
 
-      {/* OVERLAY */}
+      {/* OVERLAY DO MENU */}
       {menuOpen && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-80 backdrop-blur-sm z-40 md:hidden"
+          className="fixed inset-0 bg-black bg-opacity-80 backdrop-blur-sm z-[150] md:hidden"
           onClick={() => setMenuOpen(false)}
         />
       )}
@@ -76,12 +78,11 @@ export default function AppLayout() {
       <aside
         className={`
           fixed md:static top-0 left-0 h-full w-60 md:w-64 bg-[#0d0d0d] border-r border-[#222]
-          p-4 md:p-6 flex flex-col gap-6 z-50
+          p-4 md:p-6 flex flex-col gap-6 z-[200]
           transform transition-all duration-300 ease-out
           ${menuOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}
         `}
       >
-
         <button
           className="md:hidden self-end text-gray-400 hover:text-white text-2xl mb-2"
           onClick={() => setMenuOpen(false)}
@@ -96,11 +97,7 @@ export default function AppLayout() {
         {/* MENU */}
         <nav className="flex flex-col gap-2 md:gap-3 text-gray-300">
 
-          <Link
-            to="/"
-            onClick={() => setMenuOpen(false)}
-            className="hover:bg-[#1a1a1a] p-2 md:p-3 rounded-lg"
-          >
+          <Link to="/" onClick={() => setMenuOpen(false)} className="hover:bg-[#1a1a1a] p-2 md:p-3 rounded-lg">
             Início
           </Link>
 
@@ -126,9 +123,7 @@ export default function AppLayout() {
             onClick={() => setOpenReports(!openReports)}
           >
             <span>Relatórios Avançados</span>
-            <span className="text-gray-400 text-sm">
-              {openReports ? "▲" : "▼"}
-            </span>
+            <span className="text-gray-400 text-sm">{openReports ? "▲" : "▼"}</span>
           </div>
 
           <div
@@ -137,47 +132,26 @@ export default function AppLayout() {
               ${openReports ? "max-h-96" : "max-h-0"}
             `}
           >
-            <Link
-            to="/dashboard"
-  onClick={() => setMenuOpen(false)}
-              className="hover:bg-[#1a1a1a] p-2 md:p-3 rounded-lg flex items-center gap-2"
->
-          📊 <span>Relatório Anual</span>
-         </Link>
+            <Link to="/dashboard" onClick={() => setMenuOpen(false)} className="hover:bg-[#1a1a1a] p-2 md:p-3 rounded-lg flex items-center gap-2">
+              📊 <span>Relatório Anual</span>
+            </Link>
 
-            <Link
-              to="/relatorio-mensal"
-              onClick={() => setMenuOpen(false)}
-              className="hover:bg-[#1a1a1a] p-2 md:p-3 rounded-lg flex items-center gap-2"
-            >
+            <Link to="/relatorio-mensal" onClick={() => setMenuOpen(false)} className="hover:bg-[#1a1a1a] p-2 md:p-3 rounded-lg flex items-center gap-2">
               📅 <span>Relatório Mensal</span>
             </Link>
 
-            <Link
-              to="/relatorio-categorias"
-              onClick={() => setMenuOpen(false)}
-              className="hover:bg-[#1a1a1a] p-2 md:p-3 rounded-lg flex items-center gap-2"
-            >
+            <Link to="/relatorio-categorias" onClick={() => setMenuOpen(false)} className="hover:bg-[#1a1a1a] p-2 md:p-3 rounded-lg flex items-center gap-2">
               📂 <span>Relatório por Categoria</span>
             </Link>
 
-            <Link
-              to="/variacao-despesas"
-              onClick={() => setMenuOpen(false)}
-              className="hover:bg-[#1a1a1a] p-2 md:p-3 rounded-lg flex items-center gap-2"
-            >
+            <Link to="/variacao-despesas" onClick={() => setMenuOpen(false)} className="hover:bg-[#1a1a1a] p-2 md:p-3 rounded-lg flex items-center gap-2">
               📉 <span>Variação de Despesas</span>
             </Link>
           </div>
 
-          <Link
-            to="/configuracoes"
-            onClick={() => setMenuOpen(false)}
-            className="hover:bg-[#1a1a1a] p-2 md:p-3 rounded-lg mt-4"
-          >
+          <Link to="/configuracoes" onClick={() => setMenuOpen(false)} className="hover:bg-[#1a1a1a] p-2 md:p-3 rounded-lg mt-4">
             Configurações
           </Link>
-
         </nav>
 
         <button
@@ -191,7 +165,7 @@ export default function AppLayout() {
       {/* CONTEÚDO */}
       <main
         className={`
-          flex-1 w-full overflow-y-auto transition-all duration-300
+          flex-1 w-full transition-all duration-300
           ${isInicio ? "p-0 md:ml-64" : "p-4 md:p-8 md:ml-64"}
         `}
       >

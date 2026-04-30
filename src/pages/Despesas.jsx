@@ -1,3 +1,4 @@
+console.log("DESPESAS JSX CARREGADO >>> VERSÃO NOVA");
 import { useEffect, useState } from "react";
 import { supabase } from "../supabaseClient";
 import PremiumForm from "../components/PremiumForm";
@@ -19,7 +20,6 @@ export default function Despesas() {
   const [categoria, setCategoria] = useState("");
   const [empresa, setEmpresa] = useState("");
 
-  // IMPORTAÇÃO
   const [showImportModal, setShowImportModal] = useState(false);
   const [csvData, setCsvData] = useState([]);
 
@@ -133,7 +133,7 @@ export default function Despesas() {
   };
 
   // -----------------------------------------
-  // IMPORTAÇÃO PDF
+  // IMPORTAÇÃO PDF (ADAPTADO AO TEU EXTRATO)
   // -----------------------------------------
   const handlePDFUpload = async (e) => {
     const file = e.target.files[0];
@@ -155,57 +155,75 @@ export default function Despesas() {
     setCsvData(linhas);
   };
 
+  // -----------------------------------------
+  // PARSER ADAPTADO AO TEU EXTRATO REAL
+  // -----------------------------------------
   const processarExtratoPDF = (texto) => {
-    const linhas = texto.split("\n").map(l => l.trim()).filter(l => l);
+    const linhas = texto
+      .split("\n")
+      .map(l => l.trim())
+      .filter(l => l);
 
     const resultados = [];
 
     for (const linha of linhas) {
       const match = linha.match(
-        /^(\d{2}[-/]\d{2}[-/]\d{4})\s+(.+?)\s+(-?\d+[.,]\d{2})$/
+        /^(\d{1,2}\.\d{1,2})\s+(\d{1,2}\.\d{1,2})\s+(.+?)\s+(\d+[.,]\d{2})(?:\s+\d+[.,]\d{2})?$/
       );
 
-      if (match) {
-        const data = match[1];
-        const descricao = match[2].toUpperCase();
-        const valor = match[3].replace(",", ".");
+      if (!match) continue;
 
-        resultados.push({
-          date: formatarData(data),
-          description: descricao,
-          amount: Math.abs(Number(valor)),
-          type: Number(valor) < 0 ? "expense" : "income",
-          categoria: sugerirCategoria(descricao),
-          empresa: sugerirEmpresa(descricao)
-        });
+      const diaMes = match[1];
+      const descricao = match[3].trim().toUpperCase();
+      const valorStr = match[4].replace(",", ".");
+      const valor = Number(valorStr);
+
+      const [mes, dia] = diaMes.split(".");
+      const ano = new Date().getFullYear();
+      const dataFormatada = `${ano}-${mes.padStart(2, "0")}-${dia.padStart(2, "0")}`;
+
+      resultados.push({
+        date: dataFormatada,
+        description: descricao,
+        amount: valor,
+        type: "expense",
+        categoria: sugerirCategoria(descricao),
+        empresa: sugerirEmpresa(descricao)
+      });
+
+      // Créditos automáticos
+      if (
+        descricao.includes("REFORCO") ||
+        descricao.includes("MBWAY") ||
+        descricao.includes("RECEB") ||
+        descricao.includes("TRANSFER") ||
+        descricao.includes("DEP") ||
+        descricao.includes("CREDITO")
+      ) {
+        resultados[resultados.length - 1].type = "income";
       }
     }
 
     return resultados;
   };
 
-  const formatarData = (d) => {
-    const [dia, mes, ano] = d.split(/[-/]/);
-    return `${ano}-${mes}-${dia}`;
-  };
-
   // -----------------------------------------
   // CATEGORIZAÇÃO AUTOMÁTICA
   // -----------------------------------------
   const sugerirCategoria = (descricao) => {
-    if (descricao.includes("PINGO DOCE")) return "Alimentação";
+    if (descricao.includes("MERCADONA")) return "Alimentação";
     if (descricao.includes("CONTINENTE")) return "Alimentação";
-    if (descricao.includes("GALP")) return "Combustível";
-    if (descricao.includes("REPSOL")) return "Combustível";
-    if (descricao.includes("EDP")) return "Energia";
-    if (descricao.includes("VODAFONE")) return "Telecomunicações";
-    if (descricao.includes("CTT")) return "Serviços";
-    if (descricao.includes("SALÁRIO")) return "Receitas";
+    if (descricao.includes("VIAVERDE")) return "Portagens";
+    if (descricao.includes("NOS")) return "Telecomunicações";
+    if (descricao.includes("IBERDROLA")) return "Energia";
+    if (descricao.includes("BODYPLACE")) return "Saúde";
+    if (descricao.includes("COMPRA")) return "Compras";
     return "Outros";
   };
 
   const sugerirEmpresa = (descricao) => {
-    return descricao.split(" ")[0];
+    const palavras = descricao.split(" ");
+    return palavras[0];
   };
 
   // -----------------------------------------
@@ -216,7 +234,6 @@ export default function Despesas() {
     const userId = session.user.id;
 
     for (const linha of csvData) {
-      // EMPRESA
       let empresaId = null;
       let empresaObj = empresas.find(e => e.name === linha.empresa);
 
@@ -233,7 +250,6 @@ export default function Despesas() {
 
       empresaId = empresaObj.id;
 
-      // CATEGORIA
       let categoriaId = null;
       let categoriaObj = categorias.find(c => c.name === linha.categoria);
 
@@ -250,7 +266,6 @@ export default function Despesas() {
 
       categoriaId = categoriaObj.id;
 
-      // INSERIR TRANSAÇÃO
       await supabase.from("transactions").insert({
         user_id: userId,
         date: linha.date,
@@ -353,58 +368,57 @@ export default function Despesas() {
 
       {/* MODAL IMPORTAÇÃO */}
       {showImportModal && (
-  <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
-    <div className="bg-[#111] border border-[#333] p-6 rounded-xl w-[90%] max-w-xl text-white max-h-[90vh] overflow-y-auto">
-      <h2 className="text-xl font-bold mb-4 text-[#facc15]">Importar Extrato</h2>
+        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
+          <div className="bg-[#111] border border-[#333] p-6 rounded-xl w-[90%] max-w-xl text-white max-h-[90vh] overflow-y-auto">
+            <h2 className="text-xl font-bold mb-4 text-[#facc15]">Importar Extrato</h2>
 
-      <input
-        type="file"
-        accept=".csv"
-        onChange={handleCSVUpload}
-        className="mb-4"
-      />
+            <input
+              type="file"
+              accept=".csv"
+              onChange={handleCSVUpload}
+              className="mb-4"
+            />
 
-      <input
-        type="file"
-        accept=".pdf"
-        onChange={handlePDFUpload}
-        className="mb-4"
-      />
+            <input
+              type="file"
+              accept=".pdf"
+              onChange={handlePDFUpload}
+              className="mb-4"
+            />
 
-      {csvData.length > 0 && (
-        <div className="max-h-[50vh] overflow-y-auto border border-[#333] p-3 rounded">
-          {csvData.map((linha, i) => (
-            <div key={i} className="border-b border-[#222] py-2 text-sm">
-              <p><strong>Data:</strong> {linha.date}</p>
-              <p><strong>Descrição:</strong> {linha.description}</p>
-              <p><strong>Valor:</strong> {linha.amount} €</p>
-              <p><strong>Categoria sugerida:</strong> {linha.categoria}</p>
+            {csvData.length > 0 && (
+              <div className="max-h-[50vh] overflow-y-auto border border-[#333] p-3 rounded">
+                {csvData.map((linha, i) => (
+                  <div key={i} className="border-b border-[#222] py-2 text-sm">
+                    <p><strong>Data:</strong> {linha.date}</p>
+                    <p><strong>Descrição:</strong> {linha.description}</p>
+                    <p><strong>Valor:</strong> {linha.amount} €</p>
+                    <p><strong>Categoria sugerida:</strong> {linha.categoria}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="flex justify-end gap-3 mt-4">
+              <button
+                onClick={() => setShowImportModal(false)}
+                className="px-4 py-2 bg-gray-600 rounded-lg"
+              >
+                Cancelar
+              </button>
+
+              {csvData.length > 0 && (
+                <button
+                  onClick={importarParaSupabase}
+                  className="px-4 py-2 bg-green-500 text-black font-bold rounded-lg"
+                >
+                  Importar Tudo
+                </button>
+              )}
             </div>
-          ))}
+          </div>
         </div>
       )}
-
-      <div className="flex justify-end gap-3 mt-4">
-        <button
-          onClick={() => setShowImportModal(false)}
-          className="px-4 py-2 bg-gray-600 rounded-lg"
-        >
-          Cancelar
-        </button>
-
-        {csvData.length > 0 && (
-          <button
-            onClick={importarParaSupabase}
-            className="px-4 py-2 bg-green-500 text-black font-bold rounded-lg"
-          >
-            Importar Tudo
-          </button>
-        )}
-      </div>
-    </div>
-  </div>
-)}
-
 
     </div>
   );
