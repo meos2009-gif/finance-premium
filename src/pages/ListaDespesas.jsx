@@ -20,9 +20,6 @@ export default function ListaDespesas() {
   const [showImportModal, setShowImportModal] = useState(false);
   const [csvData, setCsvData] = useState([]);
 
-  // -----------------------------
-  // FORMATAR DATA
-  // -----------------------------
   function formatarDataCurta(dataISO) {
     if (!dataISO) return "";
     const d = new Date(dataISO);
@@ -42,13 +39,10 @@ export default function ListaDespesas() {
     return cat ? cat.name : "—";
   }
 
-  // -----------------------------
-  // CARREGAR DADOS
-  // -----------------------------
   useEffect(() => {
     async function load() {
       const { data: session } = await supabase.auth.getUser();
-      if (!session.user) return;
+      if (!session?.user) return;
 
       const { data: trans } = await supabase
         .from("transactions")
@@ -76,17 +70,11 @@ export default function ListaDespesas() {
     load();
   }, []);
 
-  // -----------------------------
-  // APAGAR DESPESA
-  // -----------------------------
   async function apagarDespesa(id) {
     await supabase.from("transactions").delete().eq("id", id);
     setDespesas((prev) => prev.filter((d) => d.id !== id));
   }
 
-  // -----------------------------
-  // EDITAR DESPESA
-  // -----------------------------
   function abrirEdicao(d) {
     setEditando(d.id);
     setDescricao(d.description);
@@ -128,14 +116,13 @@ export default function ListaDespesas() {
     setEditando(null);
   }
 
-  // -----------------------------
-  // IMPORTAÇÃO CSV
-  // -----------------------------
-  const importarParaSupabase = async () => {
+  // IMPORTAÇÃO CSV/PDF → recebe apenas linhas selecionadas
+  const importarParaSupabase = async (linhasSelecionadas) => {
     const { data: session } = await supabase.auth.getUser();
+    if (!session?.user) return;
     const userId = session.user.id;
 
-    for (const linha of csvData) {
+    for (const linha of linhasSelecionadas) {
       let empresaObj = empresas.find((e) => e.name === linha.empresa);
       if (!empresaObj) {
         const { data: nova } = await supabase
@@ -173,18 +160,12 @@ export default function ListaDespesas() {
     setCsvData([]);
   };
 
-  // -----------------------------
-  // FILTRAGEM
-  // -----------------------------
   const despesasFiltradas = despesas.filter((d) => {
     const matchCat = filtroCategoria ? d.category_id === filtroCategoria : true;
     const matchEmp = filtroEmpresa ? d.empresa_id === filtroEmpresa : true;
     return matchCat && matchEmp;
   });
 
-  // -----------------------------
-  // RESUMO POR CATEGORIA
-  // -----------------------------
   const totaisPorCategoria = Object.entries(
     despesasFiltradas.reduce((acc, d) => {
       const nome = getCategoriaNome(d.category_id);
@@ -195,8 +176,6 @@ export default function ListaDespesas() {
 
   return (
     <div className="text-white flex flex-col gap-10 px-4 md:px-0 w-full">
-
-      {/* TÍTULO + BOTÃO IMPORTAR */}
       <div className="flex justify-between items-center w-full">
         <h1 className="text-2xl font-bold text-[#facc15]">
           Lista de Despesas
@@ -210,7 +189,6 @@ export default function ListaDespesas() {
         </button>
       </div>
 
-      {/* FILTROS */}
       <div className="flex gap-4 bg-[#111] p-4 rounded-xl border border-[#222]">
         <select
           value={filtroCategoria}
@@ -235,10 +213,8 @@ export default function ListaDespesas() {
         </select>
       </div>
 
-      {/* RESUMO POR CATEGORIA */}
       <div className="bg-[#111] border border-[#222] p-4 rounded-xl">
         <h2 className="text-lg font-bold text-[#facc15] mb-3">Totais por Categoria</h2>
-
         {totaisPorCategoria.map(([nome, total]) => (
           <div key={nome} className="flex justify-between py-1 border-b border-[#222]">
             <span>{nome}</span>
@@ -247,7 +223,6 @@ export default function ListaDespesas() {
         ))}
       </div>
 
-      {/* TABELA TIPO EXCEL */}
       <div className="hidden md:block bg-[#111] border border-[#222] p-4 rounded-xl overflow-x-auto">
         <table className="w-full text-white text-sm">
           <thead>
@@ -289,7 +264,6 @@ export default function ListaDespesas() {
         </table>
       </div>
 
-      {/* MOBILE */}
       <div className="md:hidden flex flex-col gap-3">
         {despesasFiltradas.map((d) => (
           <div key={d.id} className="p-4 rounded-xl border border-[#333] bg-[#1a1a1a]">
@@ -317,16 +291,16 @@ export default function ListaDespesas() {
         ))}
       </div>
 
-      {/* MODAL IMPORTAÇÃO */}
       <ImportarExtratoModal
         show={showImportModal}
         onClose={() => setShowImportModal(false)}
         csvData={csvData}
         setCsvData={setCsvData}
         importarParaSupabase={importarParaSupabase}
+        categorias={categorias}
+        empresas={empresas}
       />
 
-      {/* MODAL EDIÇÃO */}
       {editando && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-[9999]">
           <div className="bg-[#111] p-6 rounded-xl border border-[#222] w-full max-w-lg">

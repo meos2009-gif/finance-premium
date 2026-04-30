@@ -11,17 +11,14 @@ export default function ImportarExtratoModal({
   csvData,
   setCsvData,
   importarParaSupabase,
-  categorias,
-  empresas
+  categorias = [],
+  empresas = [],
 }) {
   if (!show) return null;
 
   const [filtroCategoria, setFiltroCategoria] = useState("");
   const [filtroEmpresa, setFiltroEmpresa] = useState("");
 
-  // -----------------------------------------------------
-  // IA LOCAL — DETETAR EMPRESA
-  // -----------------------------------------------------
   const detectarEmpresa = (descricao) => {
     const d = descricao.toUpperCase();
 
@@ -42,9 +39,6 @@ export default function ImportarExtratoModal({
     return palavras[palavras.length - 1] || "Desconhecido";
   };
 
-  // -----------------------------------------------------
-  // IA LOCAL — DETETAR CATEGORIA
-  // -----------------------------------------------------
   const detectarCategoria = (descricao) => {
     const d = descricao.toUpperCase();
 
@@ -83,9 +77,6 @@ export default function ImportarExtratoModal({
     return "Outros";
   };
 
-  // -----------------------------------------------------
-  // CSV
-  // -----------------------------------------------------
   const handleCSVUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -111,16 +102,13 @@ export default function ImportarExtratoModal({
         amount: Math.abs(Number(obj["valor"] || obj["amount"] || 0)),
         categoria: detectarCategoria(desc),
         empresa: detectarEmpresa(desc),
-        selected: true
+        selected: true,
       };
     });
 
     setCsvData(data);
   };
 
-  // -----------------------------------------------------
-  // PDF
-  // -----------------------------------------------------
   const handlePDFUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -142,9 +130,6 @@ export default function ImportarExtratoModal({
     setCsvData(linhas);
   };
 
-  // -----------------------------------------------------
-  // PARSER MILLENNIUM — MÊS.DIA
-  // -----------------------------------------------------
   const processarExtratoPDF = (texto) => {
     const resultados = [];
 
@@ -170,16 +155,13 @@ export default function ImportarExtratoModal({
         amount: valor,
         categoria: detectarCategoria(descricao),
         empresa: detectarEmpresa(descricao),
-        selected: true
+        selected: true,
       });
     }
 
     return resultados;
   };
 
-  // -----------------------------------------------------
-  // APLICAR FILTROS AOS SELECIONADOS
-  // -----------------------------------------------------
   const aplicarFiltros = () => {
     setCsvData((prev) =>
       prev.map((item) =>
@@ -187,16 +169,13 @@ export default function ImportarExtratoModal({
           ? {
               ...item,
               categoria: filtroCategoria || item.categoria,
-              empresa: filtroEmpresa || item.empresa
+              empresa: filtroEmpresa || item.empresa,
             }
           : item
       )
     );
   };
 
-  // -----------------------------------------------------
-  // TOGGLE SELEÇÃO
-  // -----------------------------------------------------
   const toggleSelecionado = (index) => {
     setCsvData((prev) =>
       prev.map((item, i) =>
@@ -208,7 +187,6 @@ export default function ImportarExtratoModal({
   return createPortal(
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[9999]">
       <div className="bg-[#111] p-6 rounded-xl border border-[#333] w-[90%] max-w-xl max-h-[90vh] overflow-y-auto">
-
         <h2 className="text-xl font-bold text-[#facc15] mb-4">Importar Extrato</h2>
 
         <input type="file" accept=".csv" onChange={handleCSVUpload} className="mb-4" />
@@ -216,8 +194,6 @@ export default function ImportarExtratoModal({
 
         {csvData.length > 0 && (
           <div className="mb-4 p-3 bg-[#222] rounded-lg text-white flex gap-4 items-end">
-
-            {/* FILTRO CATEGORIA */}
             <div className="flex flex-col">
               <label className="text-sm mb-1">Categoria</label>
               <select
@@ -232,7 +208,6 @@ export default function ImportarExtratoModal({
               </select>
             </div>
 
-            {/* FILTRO EMPRESA */}
             <div className="flex flex-col">
               <label className="text-sm mb-1">Empresa</label>
               <select
@@ -253,16 +228,13 @@ export default function ImportarExtratoModal({
             >
               Aplicar aos selecionados
             </button>
-
           </div>
         )}
 
-        {/* LISTA DE LINHAS IMPORTADAS */}
         {csvData.length > 0 && (
           <div className="border border-[#333] p-3 rounded max-h-[50vh] overflow-y-auto text-white">
             {csvData.map((l, i) => (
               <div key={i} className="border-b border-[#222] py-3 text-sm">
-
                 <div className="flex gap-3 items-start">
                   <input
                     type="checkbox"
@@ -275,7 +247,6 @@ export default function ImportarExtratoModal({
                     <p><strong>Descrição:</strong> {l.description}</p>
                     <p><strong>Valor:</strong> {l.amount} €</p>
 
-                    {/* CATEGORIA */}
                     <div className="mt-2">
                       <label className="text-xs">Categoria</label>
                       <select
@@ -295,7 +266,6 @@ export default function ImportarExtratoModal({
                       </select>
                     </div>
 
-                    {/* EMPRESA */}
                     <div className="mt-2">
                       <label className="text-xs">Empresa</label>
                       <select
@@ -314,16 +284,13 @@ export default function ImportarExtratoModal({
                         ))}
                       </select>
                     </div>
-
                   </div>
                 </div>
-
               </div>
             ))}
           </div>
         )}
 
-        {/* BOTÕES */}
         <div className="flex justify-end gap-3 mt-4">
           <button onClick={onClose} className="px-4 py-2 bg-gray-600 rounded-lg">
             Cancelar
@@ -340,7 +307,6 @@ export default function ImportarExtratoModal({
             </button>
           )}
         </div>
-
       </div>
     </div>,
     document.body
