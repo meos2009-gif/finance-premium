@@ -353,57 +353,58 @@ export default function Despesas() {
 
       {/* MODAL IMPORTAÇÃO */}
       {showImportModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
-          <div className="bg-[#111] border border-[#333] p-6 rounded-xl w-[90%] max-w-xl text-white max-h-[90vh] overflow-y-auto">
-            <h2 className="text-xl font-bold mb-4 text-[#facc15]">Importar Extrato</h2>
+  <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
+    <div className="bg-[#111] border border-[#333] p-6 rounded-xl w-[90%] max-w-xl text-white max-h-[90vh] overflow-y-auto">
+      <h2 className="text-xl font-bold mb-4 text-[#facc15]">Importar Extrato</h2>
 
-            <input
-              type="file"
-              accept=".csv"
-              onChange={handleCSVUpload}
-              className="mb-4"
-            />
+      <input
+        type="file"
+        accept=".csv"
+        onChange={handleCSVUpload}
+        className="mb-4"
+      />
 
-            <input
-              type="file"
-              accept=".pdf"
-              onChange={handlePDFUpload}
-              className="mb-4"
-            />
+      <input
+        type="file"
+        accept=".pdf"
+        onChange={handlePDFUpload}
+        className="mb-4"
+      />
 
-            {csvData.length > 0 && (
-              <div className="max-h-[50vh] overflow-y-auto border border-[#333] p-3 rounded">
-                {csvData.map((linha, i) => (
-                  <div key={i} className="border-b border-[#222] py-2 text-sm">
-                    <p><strong>Data:</strong> {linha.date}</p>
-                    <p><strong>Descrição:</strong> {linha.description}</p>
-                    <p><strong>Valor:</strong> {linha.amount} €</p>
-                    <p><strong>Categoria sugerida:</strong> {linha.categoria}</p>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            <div className="flex justify-end gap-3 mt-4">
-              <button
-                onClick={() => setShowImportModal(false)}
-                className="px-4 py-2 bg-gray-600 rounded-lg"
-              >
-                Cancelar
-              </button>
-
-              {csvData.length > 0 && (
-                <button
-                  onClick={importarParaSupabase}
-                  className="px-4 py-2 bg-green-500 text-black font-bold rounded-lg"
-                >
-                  Importar Tudo
-                </button>
-              )}
+      {csvData.length > 0 && (
+        <div className="max-h-[50vh] overflow-y-auto border border-[#333] p-3 rounded">
+          {csvData.map((linha, i) => (
+            <div key={i} className="border-b border-[#222] py-2 text-sm">
+              <p><strong>Data:</strong> {linha.date}</p>
+              <p><strong>Descrição:</strong> {linha.description}</p>
+              <p><strong>Valor:</strong> {linha.amount} €</p>
+              <p><strong>Categoria sugerida:</strong> {linha.categoria}</p>
             </div>
-          </div>
+          ))}
         </div>
       )}
+
+      <div className="flex justify-end gap-3 mt-4">
+        <button
+          onClick={() => setShowImportModal(false)}
+          className="px-4 py-2 bg-gray-600 rounded-lg"
+        >
+          Cancelar
+        </button>
+
+        {csvData.length > 0 && (
+          <button
+            onClick={importarParaSupabase}
+            className="px-4 py-2 bg-green-500 text-black font-bold rounded-lg"
+          >
+            Importar Tudo
+          </button>
+        )}
+      </div>
+    </div>
+  </div>
+)}
+
 
     </div>
   );
