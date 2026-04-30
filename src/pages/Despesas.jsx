@@ -3,7 +3,7 @@ import { supabase } from "../supabaseClient";
 import PremiumForm from "../components/PremiumForm";
 import PremiumInput from "../components/PremiumInput";
 
-// PDF.js — versão correta para Vite
+// PDF.js — configuração correta para Vite
 import { GlobalWorkerOptions, getDocument } from "pdfjs-dist";
 import workerSrc from "pdfjs-dist/build/pdf.worker.mjs?url";
 
@@ -140,7 +140,7 @@ export default function Despesas() {
     if (!file) return;
 
     const arrayBuffer = await file.arrayBuffer();
-    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    const pdf = await getDocument({ data: arrayBuffer }).promise;
 
     let textoCompleto = "";
 
@@ -354,7 +354,7 @@ export default function Despesas() {
       {/* MODAL IMPORTAÇÃO */}
       {showImportModal && (
         <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
-          <div className="bg-[#111] border border-[#333] p-6 rounded-xl w-[90%] max-w-xl text-white">
+          <div className="bg-[#111] border border-[#333] p-6 rounded-xl w-[90%] max-w-xl text-white max-h-[90vh] overflow-y-auto">
             <h2 className="text-xl font-bold mb-4 text-[#facc15]">Importar Extrato</h2>
 
             <input
@@ -372,7 +372,7 @@ export default function Despesas() {
             />
 
             {csvData.length > 0 && (
-              <div className="max-h-60 overflow-y-auto border border-[#333] p-3 rounded">
+              <div className="max-h-[50vh] overflow-y-auto border border-[#333] p-3 rounded">
                 {csvData.map((linha, i) => (
                   <div key={i} className="border-b border-[#222] py-2 text-sm">
                     <p><strong>Data:</strong> {linha.date}</p>
