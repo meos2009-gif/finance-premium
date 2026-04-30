@@ -10,7 +10,9 @@ export default function ImportarExtratoModal({
   onClose,
   csvData,
   setCsvData,
-  importarParaSupabase
+  importarParaSupabase,
+  categorias,
+  empresas
 }) {
   if (!show) return null;
 
@@ -23,13 +25,14 @@ export default function ImportarExtratoModal({
   const detectarEmpresa = (descricao) => {
     const d = descricao.toUpperCase();
 
-    const empresas = [
-      "MERCADONA", "CONTINENTE", "PINGO DOCE", "LIDL", "ALDI", "INTERMARCHE",
-      "VIAVERDE", "NOS", "MEO", "VODAFONE", "IBERDROLA", "EDP",
-      "GALP", "REPSOL", "PAYPAL", "AMAZON", "UBER", "BOLT", "CP", "CTT"
+    const empresasConhecidas = [
+      "MERCADONA", "CONTINENTE", "PINGO DOCE", "LIDL", "ALDI",
+      "INTERMARCHE", "VIAVERDE", "NOS", "MEO", "VODAFONE",
+      "IBERDROLA", "EDP", "GALP", "REPSOL", "PAYPAL",
+      "AMAZON", "UBER", "BOLT", "CP", "CTT"
     ];
 
-    for (const emp of empresas) {
+    for (const emp of empresasConhecidas) {
       if (d.includes(emp)) return emp;
     }
 
@@ -65,16 +68,13 @@ export default function ImportarExtratoModal({
     if (d.includes("PAYPAL"))
       return "Subscrições";
 
-    if (d.includes("MBWAY") && d.includes("RECEB"))
-      return "Transferência";
-
-    if (d.includes("MBWAY") && d.includes("ENV"))
+    if (d.includes("MBWAY"))
       return "Transferência";
 
     if (d.includes("DD "))
       return "Débito Direto";
 
-    if (d.includes("SEGURO") || d.includes("FIDELIDADE") || d.includes("ALLIANZ"))
+    if (d.includes("SEGURO"))
       return "Seguros";
 
     if (d.includes("COMPRA"))
@@ -143,7 +143,7 @@ export default function ImportarExtratoModal({
   };
 
   // -----------------------------------------------------
-  // PARSER MILLENNIUM — DATAS + VALORES CORRETOS
+  // PARSER MILLENNIUM — MÊS.DIA
   // -----------------------------------------------------
   const processarExtratoPDF = (texto) => {
     const resultados = [];
@@ -160,7 +160,6 @@ export default function ImportarExtratoModal({
       const n2 = Number(match[5].replace(",", "."));
       const valor = Math.min(n1, n2);
 
-      // ⭐ CORREÇÃO DEFINITIVA — TEU FORMATO MÊS.DIA
       const [mes, dia] = dataLanc.split(".");
       const ano = new Date().getFullYear();
       const dataFormatada = `${ano}-${mes.padStart(2, "0")}-${dia.padStart(2, "0")}`;
@@ -175,18 +174,7 @@ export default function ImportarExtratoModal({
       });
     }
 
-    const unicos = [];
-    const mapa = new Set();
-
-    for (const mov of resultados) {
-      const chave = `${mov.date}|${mov.description}|${mov.amount}`;
-      if (!mapa.has(chave)) {
-        mapa.add(chave);
-        unicos.push(mov);
-      }
-    }
-
-    return unicos;
+    return resultados;
   };
 
   // -----------------------------------------------------
@@ -217,9 +205,6 @@ export default function ImportarExtratoModal({
     );
   };
 
-  const empresasUnicas = [...new Set(csvData.map((l) => l.empresa))];
-  const categoriasUnicas = [...new Set(csvData.map((l) => l.categoria))];
-
   return createPortal(
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[9999]">
       <div className="bg-[#111] p-6 rounded-xl border border-[#333] w-[90%] max-w-xl max-h-[90vh] overflow-y-auto">
@@ -232,6 +217,7 @@ export default function ImportarExtratoModal({
         {csvData.length > 0 && (
           <div className="mb-4 p-3 bg-[#222] rounded-lg text-white flex gap-4 items-end">
 
+            {/* FILTRO CATEGORIA */}
             <div className="flex flex-col">
               <label className="text-sm mb-1">Categoria</label>
               <select
@@ -240,12 +226,13 @@ export default function ImportarExtratoModal({
                 onChange={(e) => setFiltroCategoria(e.target.value)}
               >
                 <option value="">Todas</option>
-                {categoriasUnicas.map((cat, i) => (
-                  <option key={i} value={cat}>{cat}</option>
+                {categorias.map((c) => (
+                  <option key={c.id} value={c.name}>{c.name}</option>
                 ))}
               </select>
             </div>
 
+            {/* FILTRO EMPRESA */}
             <div className="flex flex-col">
               <label className="text-sm mb-1">Empresa</label>
               <select
@@ -254,8 +241,8 @@ export default function ImportarExtratoModal({
                 onChange={(e) => setFiltroEmpresa(e.target.value)}
               >
                 <option value="">Todas</option>
-                {empresasUnicas.map((emp, i) => (
-                  <option key={i} value={emp}>{emp}</option>
+                {empresas.map((e) => (
+                  <option key={e.id} value={e.name}>{e.name}</option>
                 ))}
               </select>
             </div>
@@ -270,6 +257,7 @@ export default function ImportarExtratoModal({
           </div>
         )}
 
+        {/* LISTA DE LINHAS IMPORTADAS */}
         {csvData.length > 0 && (
           <div className="border border-[#333] p-3 rounded max-h-[50vh] overflow-y-auto text-white">
             {csvData.map((l, i) => (
@@ -287,6 +275,7 @@ export default function ImportarExtratoModal({
                     <p><strong>Descrição:</strong> {l.description}</p>
                     <p><strong>Valor:</strong> {l.amount} €</p>
 
+                    {/* CATEGORIA */}
                     <div className="mt-2">
                       <label className="text-xs">Categoria</label>
                       <select
@@ -300,12 +289,13 @@ export default function ImportarExtratoModal({
                           )
                         }
                       >
-                        {categoriasUnicas.map((cat, idx) => (
-                          <option key={idx} value={cat}>{cat}</option>
+                        {categorias.map((c) => (
+                          <option key={c.id} value={c.name}>{c.name}</option>
                         ))}
                       </select>
                     </div>
 
+                    {/* EMPRESA */}
                     <div className="mt-2">
                       <label className="text-xs">Empresa</label>
                       <select
@@ -319,8 +309,8 @@ export default function ImportarExtratoModal({
                           )
                         }
                       >
-                        {empresasUnicas.map((emp, idx) => (
-                          <option key={idx} value={emp}>{emp}</option>
+                        {empresas.map((e) => (
+                          <option key={e.id} value={e.name}>{e.name}</option>
                         ))}
                       </select>
                     </div>
@@ -333,6 +323,7 @@ export default function ImportarExtratoModal({
           </div>
         )}
 
+        {/* BOTÕES */}
         <div className="flex justify-end gap-3 mt-4">
           <button onClick={onClose} className="px-4 py-2 bg-gray-600 rounded-lg">
             Cancelar
