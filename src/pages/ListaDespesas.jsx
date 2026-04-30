@@ -1,10 +1,14 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../supabaseClient";
+import ImportarExtratoModal from "../components/ImportarExtratoModal";
 
 export default function ListaDespesas() {
   const [despesas, setDespesas] = useState([]);
   const [categorias, setCategorias] = useState([]);
   const [empresas, setEmpresas] = useState([]);
+
+  const [filtroCategoria, setFiltroCategoria] = useState("");
+  const [filtroEmpresa, setFiltroEmpresa] = useState("");
 
   const [editando, setEditando] = useState(null);
   const [descricao, setDescricao] = useState("");
@@ -13,7 +17,14 @@ export default function ListaDespesas() {
   const [categoria, setCategoria] = useState("");
   const [empresa, setEmpresa] = useState("");
 
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [csvData, setCsvData] = useState([]);
+
+  // -----------------------------
+  // FORMATAR DATA
+  // -----------------------------
   function formatarDataCurta(dataISO) {
+    if (!dataISO) return "";
     const d = new Date(dataISO);
     return d.toLocaleDateString("pt-PT", {
       day: "2-digit",
@@ -26,6 +37,14 @@ export default function ListaDespesas() {
     return emp ? emp.name : "—";
   }
 
+  function getCategoriaNome(id) {
+    const cat = categorias.find((c) => c.id === id);
+    return cat ? cat.name : "—";
+  }
+
+  // -----------------------------
+  // CARREGAR DADOS
+  // -----------------------------
   useEffect(() => {
     async function load() {
       const { data: session } = await supabase.auth.getUser();
@@ -57,11 +76,17 @@ export default function ListaDespesas() {
     load();
   }, []);
 
+  // -----------------------------
+  // APAGAR DESPESA
+  // -----------------------------
   async function apagarDespesa(id) {
     await supabase.from("transactions").delete().eq("id", id);
     setDespesas((prev) => prev.filter((d) => d.id !== id));
   }
 
+  // -----------------------------
+  // EDITAR DESPESA
+  // -----------------------------
   function abrirEdicao(d) {
     setEditando(d.id);
     setDescricao(d.description);
@@ -103,107 +128,187 @@ export default function ListaDespesas() {
     setEditando(null);
   }
 
+  // -----------------------------
+  // IMPORTAÇÃO CSV
+  // -----------------------------
+  const importarParaSupabase = async () => {
+    const { data: session } = await supabase.auth.getUser();
+    const userId = session.user.id;
+
+    for (const linha of csvData) {
+      let empresaObj = empresas.find((e) => e.name === linha.empresa);
+      if (!empresaObj) {
+        const { data: nova } = await supabase
+          .from("empresas")
+          .insert({ name: linha.empresa, user_id: userId })
+          .select()
+          .single();
+        empresaObj = nova;
+        setEmpresas((prev) => [...prev, nova]);
+      }
+
+      let categoriaObj = categorias.find((c) => c.name === linha.categoria);
+      if (!categoriaObj) {
+        const { data: nova } = await supabase
+          .from("categories")
+          .insert({ name: linha.categoria, user_id: userId })
+          .select()
+          .single();
+        categoriaObj = nova;
+        setCategorias((prev) => [...prev, nova]);
+      }
+
+      await supabase.from("transactions").insert({
+        user_id: userId,
+        date: linha.date,
+        description: linha.description,
+        amount: linha.amount,
+        type: "expense",
+        empresa_id: empresaObj.id,
+        category_id: categoriaObj.id,
+      });
+    }
+
+    setShowImportModal(false);
+    setCsvData([]);
+  };
+
+  // -----------------------------
+  // FILTRAGEM
+  // -----------------------------
+  const despesasFiltradas = despesas.filter((d) => {
+    const matchCat = filtroCategoria ? d.category_id === filtroCategoria : true;
+    const matchEmp = filtroEmpresa ? d.empresa_id === filtroEmpresa : true;
+    return matchCat && matchEmp;
+  });
+
+  // -----------------------------
+  // RESUMO POR CATEGORIA
+  // -----------------------------
+  const totaisPorCategoria = Object.entries(
+    despesasFiltradas.reduce((acc, d) => {
+      const nome = getCategoriaNome(d.category_id);
+      acc[nome] = (acc[nome] || 0) + Number(d.amount);
+      return acc;
+    }, {})
+  ).sort((a, b) => b[1] - a[1]);
+
   return (
     <div className="text-white flex flex-col gap-10 px-4 md:px-0 w-full">
 
-      <h1 className="text-2xl font-bold text-[#facc15] text-center md:text-left w-full">
-        Lista de Despesas
-      </h1>
+      {/* TÍTULO + BOTÃO IMPORTAR */}
+      <div className="flex justify-between items-center w-full">
+        <h1 className="text-2xl font-bold text-[#facc15]">
+          Lista de Despesas
+        </h1>
 
-      {/* DESKTOP: TABELA PREMIUM */}
-      <div className="hidden md:block bg-[#111] border border-[#222] p-6 rounded-xl overflow-x-auto">
+        <button
+          onClick={() => setShowImportModal(true)}
+          className="bg-[#facc15] text-black font-bold px-4 py-2 rounded-lg hover:bg-yellow-400 transition"
+        >
+          Importar Extrato
+        </button>
+      </div>
 
-        <table className="w-full table-auto border-separate border-spacing-y-2">
+      {/* FILTROS */}
+      <div className="flex gap-4 bg-[#111] p-4 rounded-xl border border-[#222]">
+        <select
+          value={filtroCategoria}
+          onChange={(e) => setFiltroCategoria(e.target.value)}
+          className="bg-[#222] p-3 rounded-lg"
+        >
+          <option value="">Todas as Categorias</option>
+          {categorias.map((c) => (
+            <option key={c.id} value={c.id}>{c.name}</option>
+          ))}
+        </select>
+
+        <select
+          value={filtroEmpresa}
+          onChange={(e) => setFiltroEmpresa(e.target.value)}
+          className="bg-[#222] p-3 rounded-lg"
+        >
+          <option value="">Todas as Empresas</option>
+          {empresas.map((e) => (
+            <option key={e.id} value={e.id}>{e.name}</option>
+          ))}
+        </select>
+      </div>
+
+      {/* RESUMO POR CATEGORIA */}
+      <div className="bg-[#111] border border-[#222] p-4 rounded-xl">
+        <h2 className="text-lg font-bold text-[#facc15] mb-3">Totais por Categoria</h2>
+
+        {totaisPorCategoria.map(([nome, total]) => (
+          <div key={nome} className="flex justify-between py-1 border-b border-[#222]">
+            <span>{nome}</span>
+            <span className="font-bold text-green-400">{total.toFixed(2)} €</span>
+          </div>
+        ))}
+      </div>
+
+      {/* TABELA TIPO EXCEL */}
+      <div className="hidden md:block bg-[#111] border border-[#222] p-4 rounded-xl overflow-x-auto">
+        <table className="w-full text-white text-sm">
           <thead>
-            <tr className="text-gray-400">
-              <th className="w-[50%] py-2">Empresa</th>
-              <th className="w-[15%] py-2 text-right">Valor (€)</th>
-              <th className="w-[20%] py-2">Data</th>
-              <th className="w-[15%] py-2 text-center">Ações</th>
+            <tr className="border-b border-[#333]">
+              <th className="px-2 py-1 text-left">Categoria</th>
+              <th className="px-2 py-1 text-left">Empresa</th>
+              <th className="px-2 py-1 text-left">Valor (€)</th>
+              <th className="px-2 py-1 text-left">Data</th>
+              <th className="px-2 py-1 text-left">Ações</th>
             </tr>
           </thead>
 
           <tbody>
-            {despesas.map((d, index) => (
-              <tr
-                key={d.id}
-                className={`
-                  border border-[#333] rounded-lg
-                  ${index % 2 === 0 ? "bg-[#1a1a1a]" : "bg-[#151515]"}
-                  hover:bg-[#222] transition
-                `}
-              >
-                <td className="px-3 py-2 rounded-l-lg">
-                  {getEmpresaNome(d.empresa_id)}
-                </td>
+            {despesasFiltradas.map((d) => (
+              <tr key={d.id} className="border-b border-[#222] hover:bg-[#1a1a1a]">
+                <td className="px-2 py-1">{getCategoriaNome(d.category_id)}</td>
+                <td className="px-2 py-1">{getEmpresaNome(d.empresa_id)}</td>
+                <td className="px-2 py-1">{Number(d.amount).toFixed(2)}</td>
+                <td className="px-2 py-1">{formatarDataCurta(d.date)}</td>
 
-                <td className="px-3 py-2 text-right font-semibold text-green-400">
-                  {Number(d.amount).toFixed(2)}
-                </td>
+                <td className="px-2 py-1 flex gap-2">
+                  <button
+                    onClick={() => abrirEdicao(d)}
+                    className="px-2 py-1 text-xs bg-blue-500 text-black rounded"
+                  >
+                    Editar
+                  </button>
 
-                <td className="px-3 py-2">{formatarDataCurta(d.date)}</td>
-
-                <td className="px-3 py-2 rounded-r-lg text-center">
-                  <div className="inline-flex gap-3">
-                    <button
-                      onClick={() => abrirEdicao(d)}
-                      className="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded-lg text-white"
-                    >
-                      Editar
-                    </button>
-
-                    <button
-                      onClick={() => apagarDespesa(d.id)}
-                      className="px-3 py-1 bg-red-600 hover:bg-red-700 rounded-lg text-white"
-                    >
-                      Apagar
-                    </button>
-                  </div>
+                  <button
+                    onClick={() => apagarDespesa(d.id)}
+                    className="px-2 py-1 text-xs bg-red-500 text-black rounded"
+                  >
+                    Apagar
+                  </button>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
-
       </div>
 
-      {/* MOBILE: CARDS RESPONSIVOS */}
+      {/* MOBILE */}
       <div className="md:hidden flex flex-col gap-3">
-        {despesas.map((d, index) => (
-          <div
-            key={d.id}
-            className={`
-              p-4 rounded-xl border border-[#333]
-              ${index % 2 === 0 ? "bg-[#1a1a1a]" : "bg-[#151515]"}
-            `}
-          >
-            <div className="font-semibold text-lg text-[#facc15]">
-              {getEmpresaNome(d.empresa_id)}
-            </div>
-
-            <div className="text-gray-400 text-sm">
-              {d.description}
-            </div>
-
-            <div className="text-green-400 font-bold text-base mt-1">
-              {Number(d.amount).toFixed(2)} €
-            </div>
-
-            <div className="text-gray-300 text-sm">
-              {formatarDataCurta(d.date)}
-            </div>
+        {despesasFiltradas.map((d) => (
+          <div key={d.id} className="p-4 rounded-xl border border-[#333] bg-[#1a1a1a]">
+            <div className="font-semibold text-[#facc15]">{getEmpresaNome(d.empresa_id)}</div>
+            <div className="text-gray-400 text-sm">{d.description}</div>
+            <div className="text-gray-300 text-sm">{getCategoriaNome(d.category_id)}</div>
+            <div className="text-green-400 font-bold mt-1">{Number(d.amount).toFixed(2)} €</div>
+            <div className="text-gray-300 text-sm">{formatarDataCurta(d.date)}</div>
 
             <div className="flex gap-2 mt-3">
               <button
                 onClick={() => abrirEdicao(d)}
-                className="flex-1 py-1 bg-blue-600 hover:bg-blue-700 rounded-lg text-white text-sm"
+                className="flex-1 py-1 bg-blue-600 rounded-lg text-white text-sm"
               >
                 Editar
               </button>
-
               <button
                 onClick={() => apagarDespesa(d.id)}
-                className="flex-1 py-1 bg-red-600 hover:bg-red-700 rounded-lg text-white text-sm"
+                className="flex-1 py-1 bg-red-600 rounded-lg text-white text-sm"
               >
                 Apagar
               </button>
@@ -212,15 +317,22 @@ export default function ListaDespesas() {
         ))}
       </div>
 
-      {/* MODAL DE EDIÇÃO */}
-      {editando && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4">
-          <div className="bg-[#111] p-6 rounded-xl border border-[#222] w-full max-w-lg">
+      {/* MODAL IMPORTAÇÃO */}
+      <ImportarExtratoModal
+        show={showImportModal}
+        onClose={() => setShowImportModal(false)}
+        csvData={csvData}
+        setCsvData={setCsvData}
+        importarParaSupabase={importarParaSupabase}
+      />
 
+      {/* MODAL EDIÇÃO */}
+      {editando && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-[9999]">
+          <div className="bg-[#111] p-6 rounded-xl border border-[#222] w-full max-w-lg">
             <h2 className="text-xl font-bold text-[#facc15] mb-4">Editar Despesa</h2>
 
             <form onSubmit={guardarEdicao} className="flex flex-col gap-4">
-
               <input
                 className="bg-[#222] p-3 rounded-lg"
                 value={descricao}
@@ -282,7 +394,6 @@ export default function ListaDespesas() {
                   Guardar Alterações
                 </button>
               </div>
-
             </form>
           </div>
         </div>
