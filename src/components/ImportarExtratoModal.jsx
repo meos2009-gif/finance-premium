@@ -6,7 +6,7 @@ import workerSrc from "pdfjs-dist/build/pdf.worker.mjs?url";
 GlobalWorkerOptions.workerSrc = workerSrc;
 
 // ------------------------------------------------------
-// COMPONENTE UNIVERSAL PARA MAPEAR COLUNAS (CSV + PDF)
+// COMPONENTE UNIVERSAL + MODO INTELIGENTE
 // ------------------------------------------------------
 function UniversalColumnMapper({ headers, sampleRows, onConfirm }) {
   const [mapping, setMapping] = useState({
@@ -17,6 +17,71 @@ function UniversalColumnMapper({ headers, sampleRows, onConfirm }) {
     empresa: "",
     categoria: "",
   });
+
+  // MODO INTELIGENTE — tenta adivinhar colunas
+  const sugerirMapeamento = () => {
+    const sugestao = {
+      date: "",
+      description: "",
+      amount: "",
+      type: "",
+      empresa: "",
+      categoria: "",
+    };
+
+    headers.forEach((col) => {
+      const valores = sampleRows.map((r) => r[col] || "");
+
+      // DATA
+      if (
+        !sugestao.date &&
+        valores.some((v) =>
+          /^\d{1,2}[\/\-.]\d{1,2}([\/\-.]\d{2,4})?$/.test(v)
+        )
+      ) {
+        sugestao.date = col;
+      }
+
+      // VALOR
+      if (
+        !sugestao.amount &&
+        valores.some((v) =>
+          /^-?\d{1,3}(\.\d{3})*,\d{2}$/.test(v) ||
+          /^-?\d+(\.\d+)?$/.test(v)
+        )
+      ) {
+        sugestao.amount = col;
+      }
+
+      // TIPO
+      if (
+        !sugestao.type &&
+        valores.some((v) =>
+          /(D|C|DEBITO|CREDITO|DR|CR)/i.test(v)
+        )
+      ) {
+        sugestao.type = col;
+      }
+
+      // DESCRIÇÃO (coluna com texto mais longo)
+      const mediaTamanho =
+        valores.reduce((acc, v) => acc + v.length, 0) /
+        (valores.length || 1);
+      if (mediaTamanho > 10 && !sugestao.description) {
+        sugestao.description = col;
+      }
+
+      // EMPRESA (texto em maiúsculas)
+      if (
+        !sugestao.empresa &&
+        valores.some((v) => /^[A-Z0-9 .\-]{4,}$/.test(v))
+      ) {
+        sugestao.empresa = col;
+      }
+    });
+
+    setMapping(sugestao);
+  };
 
   const campos = [
     { key: "date", label: "Data" },
@@ -34,6 +99,13 @@ function UniversalColumnMapper({ headers, sampleRows, onConfirm }) {
   return (
     <div className="bg-[#111] p-4 rounded-xl border border-[#333] text-white mb-4">
       <h2 className="text-lg font-bold text-[#facc15] mb-3">Mapear Colunas</h2>
+
+      <button
+        onClick={sugerirMapeamento}
+        className="mb-4 w-full bg-blue-500 text-black font-bold p-2 rounded-lg"
+      >
+        Modo Inteligente — Sugerir Mapeamento
+      </button>
 
       {campos.map((campo) => (
         <div key={campo.key} className="mb-3">
@@ -93,9 +165,9 @@ export default function ImportarExtratoModal({
   const [rawRows, setRawRows] = useState([]);
   const [mapping, setMapping] = useState(null);
 
-  // ------------------------------------------------------
-  // UNIVERSAL CSV
-  // ------------------------------------------------------
+  // -----------------------------
+  // CSV UNIVERSAL
+  // -----------------------------
   const handleCSVUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -121,9 +193,9 @@ export default function ImportarExtratoModal({
     setMapping(null);
   };
 
-  // ------------------------------------------------------
-  // UNIVERSAL PDF (NOVO)
-  // ------------------------------------------------------
+  // -----------------------------
+  // PDF UNIVERSAL COM COLUNAS REAIS
+  // -----------------------------
   const handlePDFUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -131,26 +203,55 @@ export default function ImportarExtratoModal({
     const arrayBuffer = await file.arrayBuffer();
     const pdf = await getDocument({ data: arrayBuffer }).promise;
 
-    let textoCompleto = "";
+    let linhasPDF = [];
 
     for (let i = 1; i <= pdf.numPages; i++) {
       const page = await pdf.getPage(i);
       const content = await page.getTextContent();
-      const strings = content.items.map((item) => item.str);
-      textoCompleto += strings.join(" ") + "\n";
+
+      const linhas = {};
+      content.items.forEach((item) => {
+        const y = Math.round(item.transform[5]);
+        if (!linhas[y]) linhas[y] = [];
+        linhas[y].push({
+          x: item.transform[4],
+          text: item.str,
+        });
+      });
+
+      const linhasOrdenadas = Object.keys(linhas)
+        .sort((a, b) => Number(a) - Number(b))
+        .map((y) => linhas[y]);
+
+      linhasOrdenadas.forEach((linha) => {
+        linha.sort((a, b) => a.x - b.x);
+        linhasPDF.push(linha);
+      });
     }
 
-    const linhas = textoCompleto
-      .split("\n")
-      .map((l) => l.trim())
-      .filter((l) => l.length > 0);
+    const rows = linhasPDF.map((linha) => {
+      const colunas = [];
+      if (linha.length === 0) return {};
 
-    // Divide por múltiplos espaços → colunas universais
-    const rows = linhas.map((linha) => {
-      const colunas = linha.split(/\s{2,}/g);
+      let buffer = linha[0].text;
+
+      for (let i = 1; i < linha.length; i++) {
+        const prev = linha[i - 1];
+        const curr = linha[i];
+
+        if (curr.x - prev.x < 40) {
+          buffer += " " + curr.text;
+        } else {
+          colunas.push(buffer.trim());
+          buffer = curr.text;
+        }
+      }
+
+      colunas.push(buffer.trim());
+
       const obj = {};
       colunas.forEach((c, i) => {
-        obj[`col${i + 1}`] = c.trim();
+        obj[`col${i + 1}`] = c;
       });
       return obj;
     });
@@ -164,9 +265,9 @@ export default function ImportarExtratoModal({
     setMapping(null);
   };
 
-  // ------------------------------------------------------
-  // PROCESSAR LINHAS APÓS MAPEAMENTO
-  // ------------------------------------------------------
+  // -----------------------------
+  // NORMALIZAÇÃO APÓS MAPEAMENTO
+  // -----------------------------
   const handleMappingConfirm = (map) => {
     setMapping(map);
 
@@ -195,9 +296,6 @@ export default function ImportarExtratoModal({
     setCsvData(normalizado);
   };
 
-  // ------------------------------------------------------
-  // UI
-  // ------------------------------------------------------
   return createPortal(
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[9999]">
       <div className="bg-[#111] p-6 rounded-xl border border-[#333] w-[90%] max-w-xl max-h-[90vh] overflow-y-auto text-white">
@@ -207,7 +305,6 @@ export default function ImportarExtratoModal({
         <input type="file" accept=".csv" onChange={handleCSVUpload} className="mb-4" />
         <input type="file" accept=".pdf" onChange={handlePDFUpload} className="mb-4" />
 
-        {/* MAPEAMENTO UNIVERSAL */}
         {rawRows.length > 0 && !mapping && (
           <UniversalColumnMapper
             headers={headers}
@@ -216,7 +313,6 @@ export default function ImportarExtratoModal({
           />
         )}
 
-        {/* LISTA DE LINHAS NORMALIZADAS */}
         {csvData.length > 0 && (
           <div className="border border-[#333] p-3 rounded max-h-[50vh] overflow-y-auto text-white">
             {csvData.map((l, i) => (
