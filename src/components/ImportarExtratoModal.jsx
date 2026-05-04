@@ -36,7 +36,7 @@ function UniversalColumnMapper({ headers, sampleRows, onConfirm }) {
       if (
         !sugestao.date &&
         valores.some((v) =>
-          /^\d{1,2}[\/\-.]\d{1,2}([\/\-.]\d{2,4})?$/.test(v)
+          /^\d{1,2}[\/\-. ]\d{1,2}([\/\-. ]\d{2,4})?$/.test(v)
         )
       ) {
         sugestao.date = col;
@@ -155,8 +155,6 @@ export default function ImportarExtratoModal({
   csvData,
   setCsvData,
   importarParaSupabase,
-  categorias = [],
-  empresas = [],
 }) {
   if (!show) return null;
 
@@ -194,7 +192,7 @@ export default function ImportarExtratoModal({
   };
 
   // -----------------------------
-  // PDF UNIVERSAL COM COLUNAS REAIS
+  // PDF UNIVERSAL + FILTRO PRO
   // -----------------------------
   const handlePDFUpload = async (e) => {
     const file = e.target.files[0];
@@ -229,6 +227,7 @@ export default function ImportarExtratoModal({
       });
     }
 
+    // Reconstrução PRO de colunas
     const rows = linhasPDF.map((linha) => {
       const colunas = [];
       if (linha.length === 0) return {};
@@ -239,7 +238,7 @@ export default function ImportarExtratoModal({
         const prev = linha[i - 1];
         const curr = linha[i];
 
-        if (curr.x - prev.x < 40) {
+        if (curr.x - prev.x < 35) {
           buffer += " " + curr.text;
         } else {
           colunas.push(buffer.trim());
@@ -256,11 +255,33 @@ export default function ImportarExtratoModal({
       return obj;
     });
 
-    const headers = Object.keys(rows[0] || {});
+    // FILTRO PRO — remover lixo
+    const linhasValidas = rows.filter((row) => {
+      const texto = Object.values(row).join(" ");
+
+      // 1) Tem de ter pelo menos 2 datas
+      const datas = texto.match(/\b\d{1,2}[\/\-. ]\d{1,2}\b/g);
+      if (!datas || datas.length < 2) return false;
+
+      // 2) Tem de ter pelo menos 1 valor monetário
+      const valores = texto.match(/\b\d{1,3}(\.\d{3})*,\d{2}\b|\b\d+\.\d{2}\b/g);
+      if (!valores || valores.length === 0) return false;
+
+      // 3) Remover cabeçalhos/rodapés
+      if (/página|millennium|saldo anterior|documento|conta|iban|nib|titular/i.test(texto))
+        return false;
+
+      // 4) Remover linhas muito curtas
+      if (texto.split(/\s+/).length < 4) return false;
+
+      return true;
+    });
+
+    const headers = Object.keys(linhasValidas[0] || {});
 
     setHeaders(headers);
-    setSampleRows(rows.slice(0, 5));
-    setRawRows(rows);
+    setSampleRows(linhasValidas.slice(0, 5));
+    setRawRows(linhasValidas);
     setCsvData([]);
     setMapping(null);
   };
@@ -274,22 +295,17 @@ export default function ImportarExtratoModal({
     const normalizado = rawRows.map((row) => {
       const get = (key) => (map[key] ? (row[map[key]] ?? "").trim() : "");
 
-      // 1) Fonte primária: coluna amount
       let fonteValor = get("amount");
-
-      // 2) Se estiver vazia, usar descrição (que contém o valor)
       if (!fonteValor || !/[0-9]/.test(fonteValor)) {
         fonteValor = get("description");
       }
 
-      // 3) Extrair tokens numéricos
       const tokens = (fonteValor || "").split(/\s+/);
 
       const numerosBrutos = tokens
         .map((t) => t.replace(/\./g, "").replace(",", "."))
         .filter((t) => /^-?\d+(\.\d+)?$/.test(t));
 
-      // 4) Regra: penúltimo número = movimento
       let rawAmount = "0";
 
       if (numerosBrutos.length >= 2) {
