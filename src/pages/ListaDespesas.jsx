@@ -21,7 +21,7 @@ export default function ListaDespesas() {
   const [csvData, setCsvData] = useState([]);
 
   // -----------------------------
-  // NOVO: FILTRO POR MÊS E ANO
+  // FILTRO POR MÊS E ANO
   // -----------------------------
   const [mes, setMes] = useState(new Date().getMonth() + 1);
   const [ano, setAno] = useState(new Date().getFullYear());
@@ -188,10 +188,19 @@ export default function ListaDespesas() {
   return (
     <div className="text-white flex flex-col gap-10 px-4 md:px-0 w-full">
 
-      {/* TÍTULO */}
-      <h1 className="text-2xl font-bold text-[#facc15]">
-        Lista de Despesas — {nomeMes} {ano}
-      </h1>
+      {/* TÍTULO + BOTÃO IMPORTAR */}
+      <div className="flex justify-between items-center w-full">
+        <h1 className="text-2xl font-bold text-[#facc15]">
+          Lista de Despesas — {nomeMes} {ano}
+        </h1>
+
+        <button
+          onClick={() => setShowImportModal(true)}
+          className="bg-[#facc15] text-black font-bold px-4 py-2 rounded-lg hover:bg-yellow-400 transition"
+        >
+          Importar Extrato
+        </button>
+      </div>
 
       {/* FILTROS DE MÊS E ANO */}
       <div className="flex gap-4 bg-[#111] p-4 rounded-xl border border-[#222] w-full max-w-md">
