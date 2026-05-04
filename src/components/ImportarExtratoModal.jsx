@@ -5,6 +5,77 @@ import workerSrc from "pdfjs-dist/build/pdf.worker.mjs?url";
 
 GlobalWorkerOptions.workerSrc = workerSrc;
 
+// Componente interno para mapear colunas do CSV
+function UniversalColumnMapper({ headers, sampleRows, onConfirm }) {
+  const [mapping, setMapping] = useState({
+    date: "",
+    description: "",
+    amount: "",
+    type: "",
+    empresa: "",
+    categoria: "",
+  });
+
+  const update = (field, value) => {
+    setMapping((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const campos = [
+    { key: "date", label: "Data" },
+    { key: "description", label: "Descrição" },
+    { key: "amount", label: "Valor" },
+    { key: "type", label: "Tipo (Débito/Crédito)" },
+    { key: "empresa", label: "Empresa (opcional)" },
+    { key: "categoria", label: "Categoria (opcional)" },
+  ];
+
+  return (
+    <div className="bg-[#111] p-4 rounded-xl border border-[#333] text-white mb-4">
+      <h2 className="text-lg font-bold text-[#facc15] mb-3">Mapear Colunas</h2>
+
+      <p className="text-sm text-gray-400 mb-4">
+        Escolhe que coluna corresponde a cada campo.
+      </p>
+
+      {campos.map((campo) => (
+        <div key={campo.key} className="mb-3">
+          <label className="block mb-1">{campo.label}</label>
+          <select
+            className="bg-[#222] p-2 rounded w-full"
+            value={mapping[campo.key]}
+            onChange={(e) => update(campo.key, e.target.value)}
+          >
+            <option value="">— Selecionar —</option>
+            {headers.map((h) => (
+              <option key={h} value={h}>{h}</option>
+            ))}
+          </select>
+        </div>
+      ))}
+
+      <h3 className="text-md font-bold mt-4 mb-2">Pré-visualização</h3>
+      <div className="bg-[#222] p-3 rounded text-sm max-h-40 overflow-y-auto">
+        {sampleRows.map((row, i) => (
+          <div key={i} className="border-b border-[#333] py-1">
+            {headers.map((h) => (
+              <div key={h}>
+                <strong>{h}:</strong> {row[h]}
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+
+      <button
+        onClick={() => onConfirm(mapping)}
+        className="mt-4 w-full bg-green-500 text-black font-bold p-3 rounded-lg"
+      >
+        Confirmar Mapeamento
+      </button>
+    </div>
+  );
+}
+
 export default function ImportarExtratoModal({
   show,
   onClose,
@@ -19,64 +90,12 @@ export default function ImportarExtratoModal({
   const [filtroCategoria, setFiltroCategoria] = useState("");
   const [filtroEmpresa, setFiltroEmpresa] = useState("");
 
-  const detectarEmpresa = (descricao) => {
-    const d = descricao.toUpperCase();
+  const [headers, setHeaders] = useState([]);
+  const [sampleRows, setSampleRows] = useState([]);
+  const [rawRows, setRawRows] = useState([]);
+  const [mapping, setMapping] = useState(null);
 
-    const empresasConhecidas = [
-      "MERCADONA", "CONTINENTE", "PINGO DOCE", "LIDL", "ALDI",
-      "INTERMARCHE", "VIAVERDE", "NOS", "MEO", "VODAFONE",
-      "IBERDROLA", "EDP", "GALP", "REPSOL", "PAYPAL",
-      "AMAZON", "UBER", "BOLT", "CP", "CTT"
-    ];
-
-    for (const emp of empresasConhecidas) {
-      if (d.includes(emp)) return emp;
-    }
-
-    if (d.includes("MBWAY") || d.includes("MB WAY")) return "MBWAY";
-
-    const palavras = d.split(" ").filter(p => isNaN(p) && p.length > 2);
-    return palavras[palavras.length - 1] || "Desconhecido";
-  };
-
-  const detectarCategoria = (descricao) => {
-    const d = descricao.toUpperCase();
-
-    if (d.includes("MERCADONA") || d.includes("CONTINENTE") || d.includes("PINGO DOCE") || d.includes("LIDL") || d.includes("ALDI"))
-      return "Alimentação";
-
-    if (d.includes("VIAVERDE")) return "Portagens";
-
-    if (d.includes("NOS") || d.includes("MEO") || d.includes("VODAFONE"))
-      return "Telecomunicações";
-
-    if (d.includes("IBERDROLA") || d.includes("EDP"))
-      return "Energia";
-
-    if (d.includes("GALP") || d.includes("REPSOL"))
-      return "Combustível";
-
-    if (d.includes("AMAZON") || d.includes("AMZN"))
-      return "Compras Online";
-
-    if (d.includes("PAYPAL"))
-      return "Subscrições";
-
-    if (d.includes("MBWAY"))
-      return "Transferência";
-
-    if (d.includes("DD "))
-      return "Débito Direto";
-
-    if (d.includes("SEGURO"))
-      return "Seguros";
-
-    if (d.includes("COMPRA"))
-      return "Compras";
-
-    return "Outros";
-  };
-
+  // CSV → modo universal
   const handleCSVUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -84,31 +103,63 @@ export default function ImportarExtratoModal({
     const text = await file.text();
     const linhas = text.split("\n").map((l) => l.trim()).filter((l) => l);
 
-    const header = linhas[0].split(/[,;]+/).map((h) => h.toLowerCase());
+    if (linhas.length < 2) return;
 
-    const data = linhas.slice(1).map((linha) => {
+    const header = linhas[0].split(/[,;]+/);
+    setHeaders(header);
+
+    const rows = linhas.slice(1).map((linha) => {
       const colunas = linha.split(/[,;]+/);
-
       const obj = {};
       header.forEach((h, i) => {
-        obj[h] = colunas[i];
+        obj[h] = colunas[i] ?? "";
       });
+      return obj;
+    });
 
-      const desc = (obj["descrição"] || obj["description"] || "").toUpperCase();
+    setRawRows(rows);
+    setSampleRows(rows.slice(0, 5));
+    setCsvData([]);      // ainda não normalizado
+    setMapping(null);    // força mapeamento
+  };
+
+  // Quando o utilizador confirma o mapeamento
+  const handleMappingConfirm = (map) => {
+    setMapping(map);
+
+    const normalizado = rawRows.map((row) => {
+      const get = (key) => (map[key] ? (row[map[key]] ?? "").trim() : "");
+
+      const rawAmount = get("amount")
+        .replace(/\./g, "")
+        .replace(",", ".")
+        .replace(/\s/g, "");
+
+      let amount = parseFloat(rawAmount);
+      if (isNaN(amount)) amount = 0;
+
+      const tipo = get("type").toUpperCase();
+      if (tipo.includes("CRÉDITO") || tipo.includes("CREDITO") || tipo.includes("CREDIT")) {
+        // se quiseres receitas positivas, deixa assim
+      } else if (tipo.includes("DÉBITO") || tipo.includes("DEBITO") || tipo.includes("DEBIT")) {
+        // se quiseres despesas negativas, podes fazer: amount = -Math.abs(amount);
+      }
 
       return {
-        date: obj["data"] || obj["date"],
-        description: desc,
-        amount: Math.abs(Number(obj["valor"] || obj["amount"] || 0)),
-        categoria: detectarCategoria(desc),
-        empresa: detectarEmpresa(desc),
+        date: get("date"),
+        description: get("description"),
+        amount,
+        type: tipo || null,
+        empresa: get("empresa"),
+        categoria: get("categoria"),
         selected: true,
       };
     });
 
-    setCsvData(data);
+    setCsvData(normalizado);
   };
 
+  // PDF (mantemos simples, ainda não universal)
   const handlePDFUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -122,14 +173,18 @@ export default function ImportarExtratoModal({
       const page = await pdf.getPage(i);
       const content = await page.getTextContent();
       const strings = content.items.map((item) => item.str);
-
       textoCompleto += strings.join(" ") + "\n";
     }
 
     const linhas = processarExtratoPDF(textoCompleto);
+    setHeaders([]);
+    setSampleRows([]);
+    setRawRows([]);
+    setMapping(null);
     setCsvData(linhas);
   };
 
+  // Parser simples para PDF (podes afinar depois)
   const processarExtratoPDF = (texto) => {
     const resultados = [];
 
@@ -141,8 +196,8 @@ export default function ImportarExtratoModal({
       const dataLanc = match[1];
       const descricao = match[3].trim().toUpperCase();
 
-      const n1 = Number(match[4].replace(",", "."));
-      const n2 = Number(match[5].replace(",", "."));
+      const n1 = Number(match[4].replace(".", "").replace(",", "."));
+      const n2 = Number(match[5].replace(".", "").replace(",", "."));
       const valor = Math.min(n1, n2);
 
       const [mes, dia] = dataLanc.split(".");
@@ -153,8 +208,9 @@ export default function ImportarExtratoModal({
         date: dataFormatada,
         description: descricao,
         amount: valor,
-        categoria: detectarCategoria(descricao),
-        empresa: detectarEmpresa(descricao),
+        type: null,
+        empresa: "",
+        categoria: "",
         selected: true,
       });
     }
@@ -186,12 +242,22 @@ export default function ImportarExtratoModal({
 
   return createPortal(
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[9999]">
-      <div className="bg-[#111] p-6 rounded-xl border border-[#333] w-[90%] max-w-xl max-h-[90vh] overflow-y-auto">
+      <div className="bg-[#111] p-6 rounded-xl border border-[#333] w-[90%] max-w-xl max-h-[90vh] overflow-y-auto text-white">
         <h2 className="text-xl font-bold text-[#facc15] mb-4">Importar Extrato</h2>
 
         <input type="file" accept=".csv" onChange={handleCSVUpload} className="mb-4" />
         <input type="file" accept=".pdf" onChange={handlePDFUpload} className="mb-4" />
 
+        {/* Mapeamento universal (apenas para CSV) */}
+        {rawRows.length > 0 && !mapping && (
+          <UniversalColumnMapper
+            headers={headers}
+            sampleRows={sampleRows}
+            onConfirm={handleMappingConfirm}
+          />
+        )}
+
+        {/* Filtros rápidos (após normalização) */}
         {csvData.length > 0 && (
           <div className="mb-4 p-3 bg-[#222] rounded-lg text-white flex gap-4 items-end">
             <div className="flex flex-col">
@@ -231,6 +297,7 @@ export default function ImportarExtratoModal({
           </div>
         )}
 
+        {/* Lista de linhas normalizadas */}
         {csvData.length > 0 && (
           <div className="border border-[#333] p-3 rounded max-h-[50vh] overflow-y-auto text-white">
             {csvData.map((l, i) => (
@@ -260,6 +327,7 @@ export default function ImportarExtratoModal({
                           )
                         }
                       >
+                        <option value="">—</option>
                         {categorias.map((c) => (
                           <option key={c.id} value={c.name}>{c.name}</option>
                         ))}
@@ -279,6 +347,7 @@ export default function ImportarExtratoModal({
                           )
                         }
                       >
+                        <option value="">—</option>
                         {empresas.map((e) => (
                           <option key={e.id} value={e.name}>{e.name}</option>
                         ))}
