@@ -266,7 +266,7 @@ export default function ImportarExtratoModal({
   };
 
   // -----------------------------
-  // NORMALIZAÇÃO APÓS MAPEAMENTO
+  // NORMALIZAÇÃO — EXTRAÇÃO DO VALOR CORRETO
   // -----------------------------
   const handleMappingConfirm = (map) => {
     setMapping(map);
@@ -274,10 +274,29 @@ export default function ImportarExtratoModal({
     const normalizado = rawRows.map((row) => {
       const get = (key) => (map[key] ? (row[map[key]] ?? "").trim() : "");
 
-      const rawAmount = get("amount")
-        .replace(/\./g, "")
-        .replace(",", ".")
-        .replace(/\s/g, "");
+      // 1) Fonte primária: coluna amount
+      let fonteValor = get("amount");
+
+      // 2) Se estiver vazia, usar descrição (que contém o valor)
+      if (!fonteValor || !/[0-9]/.test(fonteValor)) {
+        fonteValor = get("description");
+      }
+
+      // 3) Extrair tokens numéricos
+      const tokens = (fonteValor || "").split(/\s+/);
+
+      const numerosBrutos = tokens
+        .map((t) => t.replace(/\./g, "").replace(",", "."))
+        .filter((t) => /^-?\d+(\.\d+)?$/.test(t));
+
+      // 4) Regra: penúltimo número = movimento
+      let rawAmount = "0";
+
+      if (numerosBrutos.length >= 2) {
+        rawAmount = numerosBrutos[numerosBrutos.length - 2];
+      } else if (numerosBrutos.length === 1) {
+        rawAmount = numerosBrutos[0];
+      }
 
       let amount = parseFloat(rawAmount);
       if (isNaN(amount)) amount = 0;
