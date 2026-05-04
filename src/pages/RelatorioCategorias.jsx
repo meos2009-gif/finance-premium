@@ -86,7 +86,7 @@ export default function RelatorioCategorias() {
   const categoriasValores = tabelaCategorias.map((c) => Number(c.valor.toFixed(2)));
 
   // -----------------------------
-  // AGRUPAR POR EMPRESA (NOVO)
+  // AGRUPAR POR EMPRESA
   // -----------------------------
   const totaisPorEmpresa = {};
   despesasFiltradas.forEach((t) => {
@@ -119,18 +119,31 @@ export default function RelatorioCategorias() {
       {/* SELEÇÃO DE MÊS E ANO */}
       <div className="flex gap-4 bg-[#111] p-4 rounded-xl border border-[#222] w-full max-w-md">
 
+        {/* SELECT MÊS */}
         <select
           className="bg-[#222] p-3 rounded-lg w-full"
           value={mes}
-          onChange={(e) => setMes(e.target.value)}
+          onChange={(e) => setMes(Number(e.target.value))}
         >
-          {nomeMes.map}
+          <option value="1">Janeiro</option>
+          <option value="2">Fevereiro</option>
+          <option value="3">Março</option>
+          <option value="4">Abril</option>
+          <option value="5">Maio</option>
+          <option value="6">Junho</option>
+          <option value="7">Julho</option>
+          <option value="8">Agosto</option>
+          <option value="9">Setembro</option>
+          <option value="10">Outubro</option>
+          <option value="11">Novembro</option>
+          <option value="12">Dezembro</option>
         </select>
 
+        {/* SELECT ANO */}
         <select
           className="bg-[#222] p-3 rounded-lg w-full"
           value={ano}
-          onChange={(e) => setAno(e.target.value)}
+          onChange={(e) => setAno(Number(e.target.value))}
         >
           {Array.from({ length: 6 }).map((_, i) => {
             const y = new Date().getFullYear() - i;
@@ -184,7 +197,7 @@ export default function RelatorioCategorias() {
       </div>
 
       {/* ----------------------------- */}
-      {/* SECÇÃO: EMPRESAS (NOVO) */}
+      {/* SECÇÃO: EMPRESAS */}
       {/* ----------------------------- */}
 
       <h2 className="text-xl font-bold text-[#22c55e]">Totais por Empresa</h2>
