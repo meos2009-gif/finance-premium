@@ -6,8 +6,6 @@ export default function ListaDespesas() {
   const [despesas, setDespesas] = useState([]);
   const [categorias, setCategorias] = useState([]);
   const [empresas, setEmpresas] = useState([]);
-  const [mes, setMes] = useState(new Date().getMonth() + 1);
-  const [ano, setAno] = useState(new Date().getFullYear());
 
   const [filtroCategoria, setFiltroCategoria] = useState("");
   const [filtroEmpresa, setFiltroEmpresa] = useState("");
@@ -21,6 +19,17 @@ export default function ListaDespesas() {
 
   const [showImportModal, setShowImportModal] = useState(false);
   const [csvData, setCsvData] = useState([]);
+
+  // -----------------------------
+  // NOVO: FILTRO POR MÊS E ANO
+  // -----------------------------
+  const [mes, setMes] = useState(new Date().getMonth() + 1);
+  const [ano, setAno] = useState(new Date().getFullYear());
+
+  const nomeMes = [
+    "Janeiro","Fevereiro","Março","Abril","Maio","Junho",
+    "Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"
+  ][mes - 1];
 
   function formatarDataCurta(dataISO) {
     if (!dataISO) return "";
@@ -50,7 +59,6 @@ export default function ListaDespesas() {
         .from("transactions")
         .select("*")
         .eq("user_id", session.user.id)
-        .eq("type", "expense")
         .order("date", { ascending: false });
 
       setDespesas(trans || []);
@@ -71,6 +79,21 @@ export default function ListaDespesas() {
     }
     load();
   }, []);
+
+  // -----------------------------
+  // FILTRAR DESPESAS POR MÊS/ANO + CATEGORIA + EMPRESA
+  // -----------------------------
+  const despesasFiltradas = despesas.filter((d) => {
+    const dataObj = new Date(d.date);
+    const mesTrans = dataObj.getMonth() + 1;
+    const anoTrans = dataObj.getFullYear();
+
+    const matchMesAno = mesTrans === Number(mes) && anoTrans === Number(ano);
+    const matchCat = filtroCategoria ? d.category_id === filtroCategoria : true;
+    const matchEmp = filtroEmpresa ? d.empresa_id === filtroEmpresa : true;
+
+    return matchMesAno && matchCat && matchEmp;
+  });
 
   async function apagarDespesa(id) {
     await supabase.from("transactions").delete().eq("id", id);
@@ -118,7 +141,7 @@ export default function ListaDespesas() {
     setEditando(null);
   }
 
-  // IMPORTAÇÃO CSV/PDF → recebe apenas linhas selecionadas
+  // IMPORTAÇÃO CSV/PDF
   const importarParaSupabase = async (linhasSelecionadas) => {
     const { data: session } = await supabase.auth.getUser();
     if (!session?.user) return;
@@ -162,77 +185,54 @@ export default function ListaDespesas() {
     setCsvData([]);
   };
 
-  const despesasFiltradas = despesas.filter((d) => {
-  const data = new Date(d.date);
-  const mesTrans = data.getMonth() + 1;
-  const anoTrans = data.getFullYear();
-
-  const matchMesAno = mesTrans === Number(mes) && anoTrans === Number(ano);
-  const matchCat = filtroCategoria ? d.category_id === filtroCategoria : true;
-  const matchEmp = filtroEmpresa ? d.empresa_id === filtroEmpresa : true;
-
-  return matchMesAno && matchCat && matchEmp;
-});
-
-  const totaisPorCategoria = Object.entries(
-    despesasFiltradas.reduce((acc, d) => {
-      const nome = getCategoriaNome(d.category_id);
-      acc[nome] = (acc[nome] || 0) + Number(d.amount);
-      return acc;
-    }, {})
-  ).sort((a, b) => b[1] - a[1]);
-
   return (
     <div className="text-white flex flex-col gap-10 px-4 md:px-0 w-full">
-      <div className="flex justify-between items-center w-full">
-        <h1 className="text-2xl font-bold text-[#facc15]">
-          Lista de Despesas
-        </h1>
-<div className="flex gap-4 bg-[#111] p-4 rounded-xl border border-[#222] w-full max-w-md">
 
-  {/* SELECT MÊS */}
-  <select
-    className="bg-[#222] p-3 rounded-lg w-full"
-    value={mes}
-    onChange={(e) => setMes(Number(e.target.value))}
-  >
-    <option value="1">Janeiro</option>
-    <option value="2">Fevereiro</option>
-    <option value="3">Março</option>
-    <option value="4">Abril</option>
-    <option value="5">Maio</option>
-    <option value="6">Junho</option>
-    <option value="7">Julho</option>
-    <option value="8">Agosto</option>
-    <option value="9">Setembro</option>
-    <option value="10">Outubro</option>
-    <option value="11">Novembro</option>
-    <option value="12">Dezembro</option>
-  </select>
+      {/* TÍTULO */}
+      <h1 className="text-2xl font-bold text-[#facc15]">
+        Lista de Despesas — {nomeMes} {ano}
+      </h1>
 
-  {/* SELECT ANO */}
-  <select
-    className="bg-[#222] p-3 rounded-lg w-full"
-    value={ano}
-    onChange={(e) => setAno(Number(e.target.value))}
-  >
-    {Array.from({ length: 6 }).map((_, i) => {
-      const y = new Date().getFullYear() - i;
-      return <option key={y} value={y}>{y}</option>;
-    })}
-  </select>
+      {/* FILTROS DE MÊS E ANO */}
+      <div className="flex gap-4 bg-[#111] p-4 rounded-xl border border-[#222] w-full max-w-md">
 
-</div>
-
-        <button
-          onClick={() => setShowImportModal(true)}
-          className="bg-[#facc15] text-black font-bold px-4 py-2 rounded-lg hover:bg-yellow-400 transition"
+        {/* SELECT MÊS */}
+        <select
+          className="bg-[#222] p-3 rounded-lg w-full"
+          value={mes}
+          onChange={(e) => setMes(Number(e.target.value))}
         >
-          Importar Extrato
-        </button>
+          <option value="1">Janeiro</option>
+          <option value="2">Fevereiro</option>
+          <option value="3">Março</option>
+          <option value="4">Abril</option>
+          <option value="5">Maio</option>
+          <option value="6">Junho</option>
+          <option value="7">Julho</option>
+          <option value="8">Agosto</option>
+          <option value="9">Setembro</option>
+          <option value="10">Outubro</option>
+          <option value="11">Novembro</option>
+          <option value="12">Dezembro</option>
+        </select>
+
+        {/* SELECT ANO */}
+        <select
+          className="bg-[#222] p-3 rounded-lg w-full"
+          value={ano}
+          onChange={(e) => setAno(Number(e.target.value))}
+        >
+          {Array.from({ length: 6 }).map((_, i) => {
+            const y = new Date().getFullYear() - i;
+            return <option key={y} value={y}>{y}</option>;
+          })}
+        </select>
+
       </div>
 
+      {/* FILTROS DE CATEGORIA E EMPRESA */}
       <div className="flex gap-4 bg-[#111] p-4 rounded-xl border border-[#222]">
+
         <select
           value={filtroCategoria}
           onChange={(e) => setFiltroCategoria(e.target.value)}
@@ -254,18 +254,10 @@ export default function ListaDespesas() {
             <option key={e.id} value={e.id}>{e.name}</option>
           ))}
         </select>
+
       </div>
 
-      <div className="bg-[#111] border border-[#222] p-4 rounded-xl">
-        <h2 className="text-lg font-bold text-[#facc15] mb-3">Totais por Categoria</h2>
-        {totaisPorCategoria.map(([nome, total]) => (
-          <div key={nome} className="flex justify-between py-1 border-b border-[#222]">
-            <span>{nome}</span>
-            <span className="font-bold text-green-400">{total.toFixed(2)} €</span>
-          </div>
-        ))}
-      </div>
-
+      {/* TABELA DESKTOP */}
       <div className="hidden md:block bg-[#111] border border-[#222] p-4 rounded-xl overflow-x-auto">
         <table className="w-full text-white text-sm">
           <thead>
@@ -307,6 +299,7 @@ export default function ListaDespesas() {
         </table>
       </div>
 
+      {/* LISTA MOBILE */}
       <div className="md:hidden flex flex-col gap-3">
         {despesasFiltradas.map((d) => (
           <div key={d.id} className="p-4 rounded-xl border border-[#333] bg-[#1a1a1a]">
@@ -334,6 +327,7 @@ export default function ListaDespesas() {
         ))}
       </div>
 
+      {/* MODAL DE IMPORTAÇÃO */}
       <ImportarExtratoModal
         show={showImportModal}
         onClose={() => setShowImportModal(false)}
@@ -344,6 +338,7 @@ export default function ListaDespesas() {
         empresas={empresas}
       />
 
+      {/* MODAL DE EDIÇÃO */}
       {editando && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-[9999]">
           <div className="bg-[#111] p-6 rounded-xl border border-[#222] w-full max-w-lg">
