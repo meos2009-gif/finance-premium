@@ -120,6 +120,62 @@ export default function ListaDespesas() {
     setEditando(null);
   }
 
+  // ⭐ DUPLICAR MÊS ANTERIOR
+  async function duplicarMesAnterior() {
+    if (!selectedMonth || !selectedYear) {
+      alert("Escolhe o mês e o ano primeiro.");
+      return;
+    }
+
+    const mesAtual = Number(selectedMonth);
+    const anoAtual = Number(selectedYear);
+
+    const mesAnterior = mesAtual === 1 ? 12 : mesAtual - 1;
+    const anoAnterior = mesAtual === 1 ? anoAtual - 1 : anoAtual;
+
+    const despesasAnterior = despesas.filter((d) => {
+      const data = new Date(d.date);
+      return (
+        data.getMonth() + 1 === mesAnterior &&
+        data.getFullYear() === anoAnterior
+      );
+    });
+
+    if (despesasAnterior.length === 0) {
+      alert("Não existem despesas no mês anterior.");
+      return;
+    }
+
+    const { data: session } = await supabase.auth.getUser();
+
+    for (const d of despesasAnterior) {
+      const dia = new Date(d.date).getDate();
+      const novaData = new Date(anoAtual, mesAtual - 1, dia);
+
+      await supabase.from("transactions").insert({
+        user_id: session.user.id,
+        type: "expense",
+        description: d.description,
+        amount: d.amount,
+        date: novaData.toISOString().split("T")[0],
+        category_id: d.category_id,
+        empresa_id: d.empresa_id,
+      });
+    }
+
+    alert("Despesas duplicadas com sucesso!");
+
+    const { data: trans } = await supabase
+      .from("transactions")
+      .select("*")
+      .eq("user_id", session.user.id)
+      .eq("type", "expense")
+      .order("date", { ascending: false });
+
+    setDespesas(trans || []);
+  }
+
+  // ⭐ FILTROS
   const despesasFiltradas = despesas.filter((d) => {
     const dataObj = new Date(d.date);
 
@@ -137,6 +193,13 @@ export default function ListaDespesas() {
     return matchCat && matchEmp && matchMonth && matchYear;
   });
 
+  // ⭐ TOTAL MENSAL
+  const totalMensal = despesasFiltradas.reduce(
+    (acc, d) => acc + Number(d.amount || 0),
+    0
+  );
+
+  // ⭐ TOTAIS POR CATEGORIA
   const totaisPorCategoria = Object.entries(
     despesasFiltradas.reduce((acc, d) => {
       const nome = getCategoriaNome(d.category_id);
@@ -144,12 +207,6 @@ export default function ListaDespesas() {
       return acc;
     }, {})
   ).sort((a, b) => b[1] - a[1]);
-
-  // ⭐ TOTAL MENSAL
-  const totalMensal = despesasFiltradas.reduce(
-    (acc, d) => acc + Number(d.amount || 0),
-    0
-  );
 
   return (
     <div className="text-white flex flex-col gap-10 px-4 md:px-0 w-full">
@@ -161,8 +218,8 @@ export default function ListaDespesas() {
         </h1>
       </div>
 
-      {/* FILTROS */}
-      <div className="flex flex-wrap gap-4 bg-[#111] p-4 rounded-xl border border-[#222]">
+      {/* FILTROS + BOTÃO DUPLICAR */}
+      <div className="flex flex-wrap gap-4 bg-[#111] p-4 rounded-xl border border-[#222] items-center">
 
         <select
           value={filtroCategoria}
@@ -217,6 +274,13 @@ export default function ListaDespesas() {
           <option value="2026">2026</option>
         </select>
 
+        {/* ⭐ BOTÃO DUPLICAR */}
+        <button
+          onClick={duplicarMesAnterior}
+          className="px-4 py-2 bg-[#facc15] text-black font-bold rounded-lg"
+        >
+          Duplicar mês anterior
+        </button>
       </div>
 
       {/* ⭐ TOTAL MENSAL */}
@@ -241,7 +305,7 @@ export default function ListaDespesas() {
         ))}
       </div>
 
-      {/* TABELA (DESKTOP + MOBILE) */}
+      {/* TABELA */}
       <div className="bg-[#111] border border-[#222] p-4 rounded-xl overflow-x-auto">
         <table className="w-full text-white text-sm min-w-[650px]">
           <thead className="bg-[#1a1a1a] border-b-2 border-[#333]">
