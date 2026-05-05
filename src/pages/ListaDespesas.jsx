@@ -25,7 +25,7 @@ export default function ListaDespesas() {
     const d = new Date(dataISO);
     return d.toLocaleDateString("pt-PT", {
       day: "2-digit",
-      month: "short",
+      month: "2-digit",
     });
   }
 
@@ -224,18 +224,18 @@ export default function ListaDespesas() {
         ))}
       </div>
 
-      {/* DESKTOP */}
-      <div className="hidden md:block bg-[#111] border border-[#222] p-4 rounded-xl overflow-x-auto">
-        <table className="w-full text-white text-sm">
+      {/* TABELA (DESKTOP + MOBILE) */}
+      <div className="bg-[#111] border border-[#222] p-4 rounded-xl overflow-x-auto">
+        <table className="w-full text-white text-sm min-w-[650px]">
           <thead className="bg-[#1a1a1a] border-b-2 border-[#333]">
             <tr>
-              <th></th>
-              <th>Categoria</th>
-              <th>Empresa</th>
-              <th>Descrição</th>
-              <th className="text-right">Valor</th>
-              <th>Data</th>
-              <th className="text-center">Ações</th>
+              <th className="px-2 py-3"></th>
+              <th className="px-2 py-3 text-left">Categoria</th>
+              <th className="px-2 py-3 text-left">Empresa</th>
+              <th className="px-2 py-3 text-left">Descrição</th>
+              <th className="px-2 py-3 text-right">Valor</th>
+              <th className="px-2 py-3 text-left">Data</th>
+              <th className="px-2 py-3 text-center">Ações</th>
             </tr>
           </thead>
 
@@ -247,25 +247,25 @@ export default function ListaDespesas() {
 
               return (
                 <tr key={d.id} className="border-b border-[#333] hover:bg-[#1a1a1a] transition">
-                  <td className="px-3 py-3 text-xl">{icon}</td>
-                  <td>{categoriaNome}</td>
-                  <td>{empresaNome}</td>
-                  <td className="text-gray-300">{d.description}</td>
-                  <td className={`text-right font-bold ${d.amount < 0 ? "text-red-400" : "text-green-400"}`}>
+                  <td className="px-2 py-3 text-xl">{icon}</td>
+                  <td className="px-2 py-3">{categoriaNome}</td>
+                  <td className="px-2 py-3">{empresaNome}</td>
+                  <td className="px-2 py-3 text-gray-300">{d.description}</td>
+                  <td className="px-2 py-3 text-right font-bold text-green-400">
                     {Number(d.amount || 0).toFixed(2)} €
                   </td>
-                  <td>{formatarDataCurta(d.date)}</td>
+                  <td className="px-2 py-3">{formatarDataCurta(d.date)}</td>
 
-                  <td className="text-center flex gap-2 justify-center">
+                  <td className="px-2 py-3 text-center flex gap-2 justify-center">
                     <button
                       onClick={() => abrirEdicao(d)}
-                      className="px-3 py-1 bg-blue-600 rounded-lg text-white text-xs"
+                      className="px-2 py-1 bg-blue-600 rounded-lg text-white text-xs"
                     >
                       Editar
                     </button>
                     <button
                       onClick={() => apagarDespesa(d.id)}
-                      className="px-3 py-1 bg-red-600 rounded-lg text-white text-xs"
+                      className="px-2 py-1 bg-red-600 rounded-lg text-white text-xs"
                     >
                       Apagar
                     </button>
@@ -275,59 +275,6 @@ export default function ListaDespesas() {
             })}
           </tbody>
         </table>
-      </div>
-
-      {/* MOBILE */}
-      <div className="md:hidden flex flex-col gap-3">
-        {despesasFiltradas.map((d) => {
-          const categoriaNome = getCategoriaNome(d.category_id);
-          const empresaNome = getEmpresaNome(d.empresa_id);
-          const icon = getIcon(categoriaNome);
-
-          return (
-            <div key={d.id} className="swipe-container border border-[#222] bg-[#151515] rounded-xl">
-              <div className="swipe-actions">
-                <button onClick={() => abrirEdicao(d)} className="swipe-btn-edit">Editar</button>
-                <button onClick={() => apagarDespesa(d.id)} className="swipe-btn-delete">Apagar</button>
-              </div>
-
-              <div
-                className="swipe-content p-3 flex justify-between items-center"
-                onTouchStart={(e) => (e.currentTarget.dataset.touchStart = e.touches[0].clientX)}
-                onTouchMove={(e) => {
-                  const diff = e.currentTarget.dataset.touchStart - e.touches[0].clientX;
-                  if (diff > 0 && diff < 120) {
-                    e.currentTarget.style.transform = `translateX(-${diff}px)`;
-                  }
-                }}
-                onTouchEnd={(e) => {
-                  const diff = e.currentTarget.dataset.touchStart - e.changedTouches[0].clientX;
-                  e.currentTarget.style.transform =
-                    diff > 60 ? "translateX(-120px)" : "translateX(0px)";
-                }}
-              >
-                <div className="flex flex-col">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xl">{icon}</span>
-                    <span className="font-semibold text-white">{empresaNome}</span>
-                  </div>
-
-                  <span className="text-gray-400 text-xs">
-                    {categoriaNome} • {formatarDataCurta(d.date)}
-                  </span>
-
-                  <span className="text-gray-300 text-xs">{d.description}</span>
-                </div>
-
-                <div className="text-right">
-                  <span className={`font-bold text-sm ${d.amount < 0 ? "text-red-400" : "text-green-400"}`}>
-                    {Number(d.amount || 0).toFixed(2)} €
-                  </span>
-                </div>
-              </div>
-            </div>
-          );
-        })}
       </div>
 
       {/* MODAL DE EDIÇÃO */}
