@@ -10,6 +10,9 @@ export default function ListaDespesas() {
   const [filtroCategoria, setFiltroCategoria] = useState("");
   const [filtroEmpresa, setFiltroEmpresa] = useState("");
 
+  const [selectedMonth, setSelectedMonth] = useState("");
+  const [selectedYear, setSelectedYear] = useState("");
+
   const [editando, setEditando] = useState(null);
   const [descricao, setDescricao] = useState("");
   const [valor, setValor] = useState("");
@@ -33,7 +36,7 @@ export default function ListaDespesas() {
 
   function getCategoriaNome(id) {
     const cat = categorias.find((c) => c.id === id);
-    return cat ? c.name : "—";
+    return cat ? cat.name : "—";
   }
 
   function getIcon(nome) {
@@ -118,9 +121,20 @@ export default function ListaDespesas() {
   }
 
   const despesasFiltradas = despesas.filter((d) => {
+    const dataObj = new Date(d.date);
+
     const matchCat = filtroCategoria ? d.category_id === filtroCategoria : true;
     const matchEmp = filtroEmpresa ? d.empresa_id === filtroEmpresa : true;
-    return matchCat && matchEmp;
+
+    const matchMonth = selectedMonth
+      ? dataObj.getMonth() + 1 === Number(selectedMonth)
+      : true;
+
+    const matchYear = selectedYear
+      ? dataObj.getFullYear() === Number(selectedYear)
+      : true;
+
+    return matchCat && matchEmp && matchMonth && matchYear;
   });
 
   const totaisPorCategoria = Object.entries(
@@ -130,6 +144,7 @@ export default function ListaDespesas() {
       return acc;
     }, {})
   ).sort((a, b) => b[1] - a[1]);
+
   return (
     <div className="text-white flex flex-col gap-10 px-4 md:px-0 w-full">
 
@@ -141,7 +156,8 @@ export default function ListaDespesas() {
       </div>
 
       {/* FILTROS */}
-      <div className="flex gap-4 bg-[#111] p-4 rounded-xl border border-[#222]">
+      <div className="flex flex-wrap gap-4 bg-[#111] p-4 rounded-xl border border-[#222]">
+
         <select
           value={filtroCategoria}
           onChange={(e) => setFiltroCategoria(e.target.value)}
@@ -163,6 +179,38 @@ export default function ListaDespesas() {
             <option key={e.id} value={e.id}>{e.name}</option>
           ))}
         </select>
+
+        <select
+          value={selectedMonth}
+          onChange={(e) => setSelectedMonth(e.target.value)}
+          className="bg-[#222] p-3 rounded-lg"
+        >
+          <option value="">Mês</option>
+          <option value="1">Janeiro</option>
+          <option value="2">Fevereiro</option>
+          <option value="3">Março</option>
+          <option value="4">Abril</option>
+          <option value="5">Maio</option>
+          <option value="6">Junho</option>
+          <option value="7">Julho</option>
+          <option value="8">Agosto</option>
+          <option value="9">Setembro</option>
+          <option value="10">Outubro</option>
+          <option value="11">Novembro</option>
+          <option value="12">Dezembro</option>
+        </select>
+
+        <select
+          value={selectedYear}
+          onChange={(e) => setSelectedYear(e.target.value)}
+          className="bg-[#222] p-3 rounded-lg"
+        >
+          <option value="">Ano</option>
+          <option value="2024">2024</option>
+          <option value="2025">2025</option>
+          <option value="2026">2026</option>
+        </select>
+
       </div>
 
       {/* TOTAIS POR CATEGORIA */}
@@ -176,20 +224,18 @@ export default function ListaDespesas() {
         ))}
       </div>
 
-      {/* ================================
-          💻 QUADRO PREMIUM INDUSTRIAL (DESKTOP)
-      ================================= */}
+      {/* DESKTOP */}
       <div className="hidden md:block bg-[#111] border border-[#222] p-4 rounded-xl overflow-x-auto">
         <table className="w-full text-white text-sm">
           <thead className="bg-[#1a1a1a] border-b-2 border-[#333]">
             <tr>
-              <th className="px-3 py-3 text-left"></th>
-              <th className="px-3 py-3 text-left">Categoria</th>
-              <th className="px-3 py-3 text-left">Empresa</th>
-              <th className="px-3 py-3 text-left">Descrição</th>
-              <th className="px-3 py-3 text-right">Valor</th>
-              <th className="px-3 py-3 text-left">Data</th>
-              <th className="px-3 py-3 text-center">Ações</th>
+              <th></th>
+              <th>Categoria</th>
+              <th>Empresa</th>
+              <th>Descrição</th>
+              <th className="text-right">Valor</th>
+              <th>Data</th>
+              <th className="text-center">Ações</th>
             </tr>
           </thead>
 
@@ -202,15 +248,15 @@ export default function ListaDespesas() {
               return (
                 <tr key={d.id} className="border-b border-[#333] hover:bg-[#1a1a1a] transition">
                   <td className="px-3 py-3 text-xl">{icon}</td>
-                  <td className="px-3 py-3">{categoriaNome}</td>
-                  <td className="px-3 py-3">{empresaNome}</td>
-                  <td className="px-3 py-3 text-gray-300">{d.description}</td>
-                  <td className={`px-3 py-3 text-right font-bold ${d.amount < 0 ? "text-red-400" : "text-green-400"}`}>
-                    {Number(d.amount).toFixed(2)} €
+                  <td>{categoriaNome}</td>
+                  <td>{empresaNome}</td>
+                  <td className="text-gray-300">{d.description}</td>
+                  <td className={`text-right font-bold ${d.amount < 0 ? "text-red-400" : "text-green-400"}`}>
+                    {Number(d.amount || 0).toFixed(2)} €
                   </td>
-                  <td className="px-3 py-3">{formatarDataCurta(d.date)}</td>
+                  <td>{formatarDataCurta(d.date)}</td>
 
-                  <td className="px-3 py-3 text-center flex gap-2 justify-center">
+                  <td className="text-center flex gap-2 justify-center">
                     <button
                       onClick={() => abrirEdicao(d)}
                       className="px-3 py-1 bg-blue-600 rounded-lg text-white text-xs"
@@ -231,9 +277,7 @@ export default function ListaDespesas() {
         </table>
       </div>
 
-      {/* ================================
-          📱 LISTA MOBILE PREMIUM COM SWIPE
-      ================================= */}
+      {/* MOBILE */}
       <div className="md:hidden flex flex-col gap-3">
         {despesasFiltradas.map((d) => {
           const categoriaNome = getCategoriaNome(d.category_id);
@@ -242,24 +286,22 @@ export default function ListaDespesas() {
 
           return (
             <div key={d.id} className="swipe-container border border-[#222] bg-[#151515] rounded-xl">
-              {/* AÇÕES */}
               <div className="swipe-actions">
                 <button onClick={() => abrirEdicao(d)} className="swipe-btn-edit">Editar</button>
                 <button onClick={() => apagarDespesa(d.id)} className="swipe-btn-delete">Apagar</button>
               </div>
 
-              {/* CONTEÚDO */}
               <div
                 className="swipe-content p-3 flex justify-between items-center"
-                onTouchStart={(e) => (d.touchStart = e.touches[0].clientX)}
+                onTouchStart={(e) => (e.currentTarget.dataset.touchStart = e.touches[0].clientX)}
                 onTouchMove={(e) => {
-                  const diff = d.touchStart - e.touches[0].clientX;
+                  const diff = e.currentTarget.dataset.touchStart - e.touches[0].clientX;
                   if (diff > 0 && diff < 120) {
                     e.currentTarget.style.transform = `translateX(-${diff}px)`;
                   }
                 }}
                 onTouchEnd={(e) => {
-                  const diff = d.touchStart - e.changedTouches[0].clientX;
+                  const diff = e.currentTarget.dataset.touchStart - e.changedTouches[0].clientX;
                   e.currentTarget.style.transform =
                     diff > 60 ? "translateX(-120px)" : "translateX(0px)";
                 }}
@@ -279,7 +321,7 @@ export default function ListaDespesas() {
 
                 <div className="text-right">
                   <span className={`font-bold text-sm ${d.amount < 0 ? "text-red-400" : "text-green-400"}`}>
-                    {Number(d.amount).toFixed(2)} €
+                    {Number(d.amount || 0).toFixed(2)} €
                   </span>
                 </div>
               </div>
@@ -287,6 +329,7 @@ export default function ListaDespesas() {
           );
         })}
       </div>
+
       {/* MODAL DE EDIÇÃO */}
       {editando && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-[9999]">
