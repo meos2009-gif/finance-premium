@@ -130,7 +130,6 @@ export default function ListaDespesas() {
       return acc;
     }, {})
   ).sort((a, b) => b[1] - a[1]);
-
   return (
     <div className="text-white flex flex-col gap-10 px-4 md:px-0 w-full">
 
@@ -288,7 +287,6 @@ export default function ListaDespesas() {
           );
         })}
       </div>
-
       {/* MODAL DE EDIÇÃO */}
       {editando && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-[9999]">
