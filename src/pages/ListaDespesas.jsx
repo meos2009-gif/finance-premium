@@ -145,6 +145,12 @@ export default function ListaDespesas() {
     }, {})
   ).sort((a, b) => b[1] - a[1]);
 
+  // ⭐ TOTAL MENSAL
+  const totalMensal = despesasFiltradas.reduce(
+    (acc, d) => acc + Number(d.amount || 0),
+    0
+  );
+
   return (
     <div className="text-white flex flex-col gap-10 px-4 md:px-0 w-full">
 
@@ -211,6 +217,17 @@ export default function ListaDespesas() {
           <option value="2026">2026</option>
         </select>
 
+      </div>
+
+      {/* ⭐ TOTAL MENSAL */}
+      <div className="bg-[#111] border border-[#222] p-4 rounded-xl">
+        <h2 className="text-lg font-bold text-[#facc15] mb-2">
+          Total de Despesas do Mês
+        </h2>
+
+        <div className="text-3xl font-bold text-red-400">
+          {totalMensal.toFixed(2)} €
+        </div>
       </div>
 
       {/* TOTAIS POR CATEGORIA */}
