@@ -34,3 +34,47 @@
     box-shadow: 4px 0 20px rgba(0, 0, 0, 0.4);
   }
 }
+
+/* ⭐ SWIPE ACTIONS PREMIUM (telemóvel) */
+.swipe-container {
+  position: relative;
+  overflow: hidden;
+  border-radius: 12px;
+}
+
+.swipe-content {
+  transition: transform 0.2s ease;
+  background-color: #151515;
+}
+
+.swipe-actions {
+  position: absolute;
+  top: 0;
+  right: 0;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  padding-right: 6px;
+  gap: 6px;
+}
+
+/* Botões de swipe */
+.swipe-btn-edit {
+  background-color: #2563eb; /* azul premium */
+  color: white;
+  padding: 0 14px;
+  height: 80%;
+  display: flex;
+  align-items: center;
+  border-radius: 10px 0 0 10px;
+}
+
+.swipe-btn-delete {
+  background-color: #dc2626; /* vermelho premium */
+  color: white;
+  padding: 0 14px;
+  height: 80%;
+  display: flex;
+  align-items: center;
+  border-radius: 0 10px 10px 0;
+}
