@@ -175,6 +175,43 @@ export default function ListaDespesas() {
     setDespesas(trans || []);
   }
 
+  // ⭐ DUPLICAR POR LINHA
+  async function duplicarDespesa(d) {
+    const { data: session } = await supabase.auth.getUser();
+    if (!session?.user) return;
+
+    let ano = Number(selectedYear);
+    let mes = Number(selectedMonth);
+
+    const hoje = new Date();
+    if (!ano) ano = hoje.getFullYear();
+    if (!mes) mes = hoje.getMonth() + 1;
+
+    const dia = new Date(d.date).getDate();
+    const novaData = new Date(ano, mes - 1, dia);
+
+    await supabase.from("transactions").insert({
+      user_id: session.user.id,
+      type: "expense",
+      description: d.description,
+      amount: d.amount,
+      date: novaData.toISOString().split("T")[0],
+      category_id: d.category_id,
+      empresa_id: d.empresa_id,
+    });
+
+    const { data: trans } = await supabase
+      .from("transactions")
+      .select("*")
+      .eq("user_id", session.user.id)
+      .eq("type", "expense")
+      .order("date", { ascending: false });
+
+    setDespesas(trans || []);
+
+    alert("Despesa duplicada com sucesso!");
+  }
+
   // ⭐ FILTROS
   const despesasFiltradas = despesas.filter((d) => {
     const dataObj = new Date(d.date);
@@ -274,7 +311,7 @@ export default function ListaDespesas() {
           <option value="2026">2026</option>
         </select>
 
-        {/* ⭐ BOTÃO DUPLICAR */}
+        {/* ⭐ BOTÃO DUPLICAR MÊS ANTERIOR */}
         <button
           onClick={duplicarMesAnterior}
           className="px-4 py-2 bg-[#facc15] text-black font-bold rounded-lg"
@@ -344,6 +381,14 @@ export default function ListaDespesas() {
                     >
                       Editar
                     </button>
+
+                    <button
+                      onClick={() => duplicarDespesa(d)}
+                      className="px-2 py-1 bg-yellow-400 text-black rounded-lg text-xs font-bold"
+                    >
+                      Duplicar
+                    </button>
+
                     <button
                       onClick={() => apagarDespesa(d.id)}
                       className="px-2 py-1 bg-red-600 rounded-lg text-white text-xs"
