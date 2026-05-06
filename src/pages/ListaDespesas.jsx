@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../supabaseClient";
-import { categoryIcons } from "../utils/categoryIcons";
 
 export default function ListaDespesas() {
   const [despesas, setDespesas] = useState([]);
@@ -41,10 +40,6 @@ export default function ListaDespesas() {
   function getCategoriaNome(id) {
     const cat = categorias.find((c) => c.id === id);
     return cat ? cat.name : "—";
-  }
-
-  function getIcon(nome) {
-    return categoryIcons[nome] || "📌";
   }
 
   useEffect(() => {
@@ -264,7 +259,7 @@ export default function ListaDespesas() {
         </h1>
       </div>
 
-      {/* FILTROS + BOTÃO DUPLICAR */}
+      {/* FILTROS */}
       <div className="flex flex-wrap gap-4 bg-[#111] p-4 rounded-xl border border-[#222] items-center">
         <select
           value={filtroCategoria}
@@ -369,7 +364,6 @@ export default function ListaDespesas() {
         <table className="w-full text-white text-sm min-w-[650px]">
           <thead className="bg-[#1a1a1a] border-b-2 border-[#333]">
             <tr>
-              <th className="px-2 py-3"></th>
               <th className="px-2 py-3 text-left">Categoria</th>
               <th className="px-2 py-3 text-left">Empresa</th>
               <th className="px-2 py-3 text-left">Descrição</th>
@@ -378,15 +372,14 @@ export default function ListaDespesas() {
               <th className="px-2 py-3 text-center">Ações</th>
             </tr>
           </thead>
+
           <tbody>
             {despesasFiltradas.map((d) => {
               const categoriaNome = getCategoriaNome(d.category_id);
               const empresaNome = getEmpresaNome(d.empresa_id);
-              const icon = getIcon(categoriaNome);
 
               return (
                 <tr key={d.id} className="border-b border-[#333] hover:bg-[#1a1a1a] transition">
-                  <td className="px-2 py-3 text-xl">{icon}</td>
                   <td className="px-2 py-3">{categoriaNome}</td>
                   <td className="px-2 py-3">{empresaNome}</td>
                   <td className="px-2 py-3 text-gray-300">{d.description}</td>
@@ -394,6 +387,7 @@ export default function ListaDespesas() {
                     {Number(d.amount || 0).toFixed(2)} €
                   </td>
                   <td className="px-2 py-3">{formatarDataCurta(d.date)}</td>
+
                   <td className="px-2 py-3 text-center flex gap-2 justify-center">
                     <button
                       onClick={() => abrirEdicao(d)}
@@ -401,12 +395,14 @@ export default function ListaDespesas() {
                     >
                       Editar
                     </button>
+
                     <button
                       onClick={() => duplicarDespesa(d)}
                       className="px-2 py-1 bg-yellow-400 text-black rounded-lg text-xs font-bold"
                     >
                       Duplicar
                     </button>
+
                     <button
                       onClick={() => apagarDespesa(d.id)}
                       className="px-2 py-1 bg-red-600 rounded-lg text-white text-xs"
@@ -493,6 +489,7 @@ export default function ListaDespesas() {
           </div>
         </div>
       )}
+
     </div>
   );
 }
