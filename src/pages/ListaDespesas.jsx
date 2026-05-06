@@ -252,6 +252,7 @@ export default function ListaDespesas() {
 
   return (
     <div className="text-white flex flex-col gap-10 px-4 md:px-0 w-full">
+
       {/* TÍTULO */}
       <div className="flex justify-between items-center w-full">
         <h1 className="text-2xl font-bold text-[#facc15]">
@@ -260,11 +261,12 @@ export default function ListaDespesas() {
       </div>
 
       {/* FILTROS */}
-      <div className="flex flex-wrap gap-4 bg-[#111] p-4 rounded-xl border border-[#222] items-center">
+      <div className="flex flex-wrap gap-3 bg-[#111] p-3 rounded-xl border border-[#222] items-center">
+
         <select
           value={filtroCategoria}
           onChange={(e) => setFiltroCategoria(e.target.value)}
-          className="bg-[#222] p-3 rounded-lg"
+          className="bg-[#222] p-2 rounded-lg"
         >
           <option value="">Todas as Categorias</option>
           {categorias.map((c) => (
@@ -275,7 +277,7 @@ export default function ListaDespesas() {
         <select
           value={filtroEmpresa}
           onChange={(e) => setFiltroEmpresa(e.target.value)}
-          className="bg-[#222] p-3 rounded-lg"
+          className="bg-[#222] p-2 rounded-lg"
         >
           <option value="">Todas as Empresas</option>
           {empresas.map((e) => (
@@ -286,7 +288,7 @@ export default function ListaDespesas() {
         <select
           value={selectedMonth}
           onChange={(e) => setSelectedMonth(e.target.value)}
-          className="bg-[#222] p-3 rounded-lg"
+          className="bg-[#222] p-2 rounded-lg"
           disabled={startDate && endDate}
         >
           <option value="">Mês</option>
@@ -307,7 +309,7 @@ export default function ListaDespesas() {
         <select
           value={selectedYear}
           onChange={(e) => setSelectedYear(e.target.value)}
-          className="bg-[#222] p-3 rounded-lg"
+          className="bg-[#222] p-2 rounded-lg"
           disabled={startDate && endDate}
         >
           <option value="">Ano</option>
@@ -320,37 +322,37 @@ export default function ListaDespesas() {
           type="date"
           value={startDate}
           onChange={(e) => setStartDate(e.target.value)}
-          className="bg-[#222] p-3 rounded-lg"
+          className="bg-[#222] p-2 rounded-lg"
         />
 
         <input
           type="date"
           value={endDate}
           onChange={(e) => setEndDate(e.target.value)}
-          className="bg-[#222] p-3 rounded-lg"
+          className="bg-[#222] p-2 rounded-lg"
         />
 
         <button
           onClick={duplicarMesAnterior}
-          className="px-4 py-2 bg-[#facc15] text-black font-bold rounded-lg"
+          className="px-3 py-2 bg-[#facc15] text-black font-bold rounded-lg"
         >
           Duplicar mês anterior
         </button>
       </div>
 
       {/* TOTAL PERÍODO */}
-      <div className="bg-[#111] border border-[#222] p-4 rounded-xl">
-        <h2 className="text-lg font-bold text-[#facc15] mb-2">
+      <div className="bg-[#111] border border-[#222] p-3 rounded-xl">
+        <h2 className="text-lg font-bold text-[#facc15] mb-1">
           Total do Período
         </h2>
-        <div className="text-3xl font-bold text-red-400">
+        <div className="text-2xl font-bold text-red-400">
           {totalMensal.toFixed(2)} €
         </div>
       </div>
 
       {/* TOTAIS POR CATEGORIA */}
-      <div className="bg-[#111] border border-[#222] p-4 rounded-xl">
-        <h2 className="text-lg font-bold text-[#facc15] mb-3">Totais por Categoria</h2>
+      <div className="bg-[#111] border border-[#222] p-3 rounded-xl">
+        <h2 className="text-lg font-bold text-[#facc15] mb-2">Totais por Categoria</h2>
         {totaisPorCategoria.map(([nome, total]) => (
           <div key={nome} className="flex justify-between py-1 border-b border-[#222]">
             <span>{nome}</span>
@@ -359,17 +361,17 @@ export default function ListaDespesas() {
         ))}
       </div>
 
-      {/* TABELA */}
-      <div className="bg-[#111] border border-[#222] p-4 rounded-xl overflow-x-auto">
+      {/* TABELA COMPACTA */}
+      <div className="p-2 overflow-x-auto">
         <table className="w-full text-white text-sm min-w-[650px]">
-          <thead className="bg-[#1a1a1a] border-b-2 border-[#333]">
+          <thead className="border-b border-[#333]">
             <tr>
-              <th className="px-2 py-3 text-left">Categoria</th>
-              <th className="px-2 py-3 text-left">Empresa</th>
-              <th className="px-2 py-3 text-left">Descrição</th>
-              <th className="px-2 py-3 text-right">Valor</th>
-              <th className="px-2 py-3 text-left">Data</th>
-              <th className="px-2 py-3 text-center">Ações</th>
+              <th className="px-2 py-2 text-left">Categoria</th>
+              <th className="px-2 py-2 text-left min-w-[130px]">Empresa</th>
+              <th className="px-2 py-2 text-left">Descrição</th>
+              <th className="px-2 py-2 text-right min-w-[90px]">Valor</th>
+              <th className="px-2 py-2 text-left">Data</th>
+              <th className="px-2 py-2 text-center">Ações</th>
             </tr>
           </thead>
 
@@ -379,16 +381,16 @@ export default function ListaDespesas() {
               const empresaNome = getEmpresaNome(d.empresa_id);
 
               return (
-                <tr key={d.id} className="border-b border-[#333] hover:bg-[#1a1a1a] transition">
-                  <td className="px-2 py-3">{categoriaNome}</td>
-                  <td className="px-2 py-3 min-w-[130px]">{empresaNome}</td>
-                  <td className="px-2 py-3 text-gray-300">{d.description}</td>
-                  <td className="px-2 py-3 text-right font-bold text-green-400 min-w-[90px]">
+                <tr key={d.id} className="border-b border-[#222]">
+                  <td className="px-2 py-1.5">{categoriaNome}</td>
+                  <td className="px-2 py-1.5 min-w-[130px]">{empresaNome}</td>
+                  <td className="px-2 py-1.5 text-gray-300">{d.description}</td>
+                  <td className="px-2 py-1.5 text-right font-bold text-green-400 min-w-[90px]">
                     {Number(d.amount || 0).toFixed(2)} €
                   </td>
-                  <td className="px-2 py-3">{formatarDataCurta(d.date)}</td>
+                  <td className="px-2 py-1.5">{formatarDataCurta(d.date)}</td>
 
-                  <td className="px-2 py-3 text-center flex gap-2 justify-center">
+                  <td className="px-2 py-1.5 text-center flex gap-2 justify-center">
                     <button
                       onClick={() => abrirEdicao(d)}
                       className="px-2 py-1 bg-blue-600 rounded-lg text-white text-xs"
