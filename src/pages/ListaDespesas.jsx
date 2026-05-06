@@ -383,7 +383,7 @@ export default function ListaDespesas() {
                   <td className="px-2 py-3">{categoriaNome}</td>
                   <td className="px-2 py-3">{empresaNome}</td>
                   <td className="px-2 py-3 text-gray-300">{d.description}</td>
-                  <td className="px-2 py-3 text-right font-bold text-green-400">
+                  <td className="px-2 py-3 text-right font-bold text-green-400 min-w-[90px]">
                     {Number(d.amount || 0).toFixed(2)} €
                   </td>
                   <td className="px-2 py-3">{formatarDataCurta(d.date)}</td>
