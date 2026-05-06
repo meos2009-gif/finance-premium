@@ -381,7 +381,7 @@ export default function ListaDespesas() {
               return (
                 <tr key={d.id} className="border-b border-[#333] hover:bg-[#1a1a1a] transition">
                   <td className="px-2 py-3">{categoriaNome}</td>
-                  <td className="px-2 py-3">{empresaNome}</td>
+                  <td className="px-2 py-3 min-w-[130px]">{empresaNome}</td>
                   <td className="px-2 py-3 text-gray-300">{d.description}</td>
                   <td className="px-2 py-3 text-right font-bold text-green-400 min-w-[90px]">
                     {Number(d.amount || 0).toFixed(2)} €
