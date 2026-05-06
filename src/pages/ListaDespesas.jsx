@@ -13,6 +13,10 @@ export default function ListaDespesas() {
   const [selectedMonth, setSelectedMonth] = useState("");
   const [selectedYear, setSelectedYear] = useState("");
 
+  // PERÍODO
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+
   const [editando, setEditando] = useState(null);
   const [descricao, setDescricao] = useState("");
   const [valor, setValor] = useState("");
@@ -120,7 +124,7 @@ export default function ListaDespesas() {
     setEditando(null);
   }
 
-  // ⭐ DUPLICAR MÊS ANTERIOR
+  // DUPLICAR MÊS ANTERIOR
   async function duplicarMesAnterior() {
     if (!selectedMonth || !selectedYear) {
       alert("Escolhe o mês e o ano primeiro.");
@@ -175,7 +179,7 @@ export default function ListaDespesas() {
     setDespesas(trans || []);
   }
 
-  // ⭐ DUPLICAR POR LINHA
+  // DUPLICAR POR LINHA
   async function duplicarDespesa(d) {
     const { data: session } = await supabase.auth.getUser();
     if (!session?.user) return;
@@ -212,31 +216,37 @@ export default function ListaDespesas() {
     alert("Despesa duplicada com sucesso!");
   }
 
-  // ⭐ FILTROS
+  // FILTROS (PERÍODO > MÊS/ANO)
   const despesasFiltradas = despesas.filter((d) => {
     const dataObj = new Date(d.date);
+
+    if (startDate && endDate) {
+      const inicio = new Date(startDate);
+      const fim = new Date(endDate);
+      if (dataObj < inicio || dataObj > fim) return false;
+    } else {
+      const matchMonth = selectedMonth
+        ? dataObj.getMonth() + 1 === Number(selectedMonth)
+        : true;
+
+      const matchYear = selectedYear
+        ? dataObj.getFullYear() === Number(selectedYear)
+        : true;
+
+      if (!matchMonth || !matchYear) return false;
+    }
 
     const matchCat = filtroCategoria ? d.category_id === filtroCategoria : true;
     const matchEmp = filtroEmpresa ? d.empresa_id === filtroEmpresa : true;
 
-    const matchMonth = selectedMonth
-      ? dataObj.getMonth() + 1 === Number(selectedMonth)
-      : true;
-
-    const matchYear = selectedYear
-      ? dataObj.getFullYear() === Number(selectedYear)
-      : true;
-
-    return matchCat && matchEmp && matchMonth && matchYear;
+    return matchCat && matchEmp;
   });
 
-  // ⭐ TOTAL MENSAL
   const totalMensal = despesasFiltradas.reduce(
     (acc, d) => acc + Number(d.amount || 0),
     0
   );
 
-  // ⭐ TOTAIS POR CATEGORIA
   const totaisPorCategoria = Object.entries(
     despesasFiltradas.reduce((acc, d) => {
       const nome = getCategoriaNome(d.category_id);
@@ -247,7 +257,6 @@ export default function ListaDespesas() {
 
   return (
     <div className="text-white flex flex-col gap-10 px-4 md:px-0 w-full">
-
       {/* TÍTULO */}
       <div className="flex justify-between items-center w-full">
         <h1 className="text-2xl font-bold text-[#facc15]">
@@ -257,7 +266,6 @@ export default function ListaDespesas() {
 
       {/* FILTROS + BOTÃO DUPLICAR */}
       <div className="flex flex-wrap gap-4 bg-[#111] p-4 rounded-xl border border-[#222] items-center">
-
         <select
           value={filtroCategoria}
           onChange={(e) => setFiltroCategoria(e.target.value)}
@@ -284,6 +292,7 @@ export default function ListaDespesas() {
           value={selectedMonth}
           onChange={(e) => setSelectedMonth(e.target.value)}
           className="bg-[#222] p-3 rounded-lg"
+          disabled={startDate && endDate}
         >
           <option value="">Mês</option>
           <option value="1">Janeiro</option>
@@ -304,6 +313,7 @@ export default function ListaDespesas() {
           value={selectedYear}
           onChange={(e) => setSelectedYear(e.target.value)}
           className="bg-[#222] p-3 rounded-lg"
+          disabled={startDate && endDate}
         >
           <option value="">Ano</option>
           <option value="2024">2024</option>
@@ -311,7 +321,20 @@ export default function ListaDespesas() {
           <option value="2026">2026</option>
         </select>
 
-        {/* ⭐ BOTÃO DUPLICAR MÊS ANTERIOR */}
+        <input
+          type="date"
+          value={startDate}
+          onChange={(e) => setStartDate(e.target.value)}
+          className="bg-[#222] p-3 rounded-lg"
+        />
+
+        <input
+          type="date"
+          value={endDate}
+          onChange={(e) => setEndDate(e.target.value)}
+          className="bg-[#222] p-3 rounded-lg"
+        />
+
         <button
           onClick={duplicarMesAnterior}
           className="px-4 py-2 bg-[#facc15] text-black font-bold rounded-lg"
@@ -320,12 +343,11 @@ export default function ListaDespesas() {
         </button>
       </div>
 
-      {/* ⭐ TOTAL MENSAL */}
+      {/* TOTAL PERÍODO */}
       <div className="bg-[#111] border border-[#222] p-4 rounded-xl">
         <h2 className="text-lg font-bold text-[#facc15] mb-2">
-          Total de Despesas do Mês
+          Total do Período
         </h2>
-
         <div className="text-3xl font-bold text-red-400">
           {totalMensal.toFixed(2)} €
         </div>
@@ -356,7 +378,6 @@ export default function ListaDespesas() {
               <th className="px-2 py-3 text-center">Ações</th>
             </tr>
           </thead>
-
           <tbody>
             {despesasFiltradas.map((d) => {
               const categoriaNome = getCategoriaNome(d.category_id);
@@ -373,7 +394,6 @@ export default function ListaDespesas() {
                     {Number(d.amount || 0).toFixed(2)} €
                   </td>
                   <td className="px-2 py-3">{formatarDataCurta(d.date)}</td>
-
                   <td className="px-2 py-3 text-center flex gap-2 justify-center">
                     <button
                       onClick={() => abrirEdicao(d)}
@@ -381,14 +401,12 @@ export default function ListaDespesas() {
                     >
                       Editar
                     </button>
-
                     <button
                       onClick={() => duplicarDespesa(d)}
                       className="px-2 py-1 bg-yellow-400 text-black rounded-lg text-xs font-bold"
                     >
                       Duplicar
                     </button>
-
                     <button
                       onClick={() => apagarDespesa(d.id)}
                       className="px-2 py-1 bg-red-600 rounded-lg text-white text-xs"
@@ -475,7 +493,6 @@ export default function ListaDespesas() {
           </div>
         </div>
       )}
-
     </div>
   );
 }
