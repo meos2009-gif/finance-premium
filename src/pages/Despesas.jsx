@@ -13,7 +13,6 @@ export default function Despesas() {
   const [categoria, setCategoria] = useState("");
   const [empresa, setEmpresa] = useState("");
 
-  // 🎤 ESTADO PARA VOZ
   const [listening, setListening] = useState(false);
   const [transcript, setTranscript] = useState("");
 
@@ -39,7 +38,6 @@ export default function Despesas() {
     load();
   }, []);
 
-  // 🎤 INICIAR RECONHECIMENTO DE VOZ
   function iniciarVoz() {
     const SpeechRecognition =
       window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -73,22 +71,18 @@ export default function Despesas() {
     recognition.start();
   }
 
-  // 🎤 INTERPRETAR TEXTO FALADO (VERSÃO FINAL)
+  // ⭐ INTERPRETADOR FINAL
   function interpretarVoz(texto) {
     texto = texto.toLowerCase();
 
     // -------------------------
-    // 1) VALOR (inclui "50 euros e vinte centimos")
+    // 1) VALOR
     // -------------------------
     let valorExtraido = null;
 
-    // números normais
     const numero = texto.match(/(\d+[.,]?\d*)/);
-    if (numero) {
-      valorExtraido = numero[0].replace(",", ".");
-    }
+    if (numero) valorExtraido = numero[0].replace(",", ".");
 
-    // "vinte centimos", "cinquenta euros", etc.
     if (texto.includes("cent")) {
       const partes = texto.split(" ");
       let euros = 0;
@@ -111,7 +105,7 @@ export default function Despesas() {
     if (valorExtraido) setValor(valorExtraido);
 
     // -------------------------
-    // 2) DATA ("30 de maio")
+    // 2) DATA
     // -------------------------
     const meses = {
       janeiro: "01", fevereiro: "02", março: "03", abril: "04", maio: "05",
@@ -132,37 +126,66 @@ export default function Despesas() {
     }
 
     // -------------------------
-    // 3) CATEGORIA (fuzzy match)
+    // 3) CATEGORIA (prioridade: depois de "categoria")
     // -------------------------
-    categorias.forEach((c) => {
-      const nome = c.name.toLowerCase();
-      const palavras = nome.split(" ");
-      const bate = palavras.some((p) => texto.includes(p));
-      if (bate) {
-        setCategoria(c.id);
-      }
-    });
+    let categoriaEncontrada = null;
 
-    // -------------------------
-    // 4) EMPRESA (fuzzy match)
-    // -------------------------
-    empresas.forEach((e) => {
-      const nome = e.name.toLowerCase();
-      if (texto.includes(nome)) {
-        setEmpresa(e.name);
-      }
-    });
+    const idxCategoria = texto.indexOf("categoria ");
+    if (idxCategoria !== -1) {
+      const depois = texto.slice(idxCategoria + 10).trim();
+      categorias.forEach((c) => {
+        const nome = c.name.toLowerCase();
+        const nomeSemAcento = nome.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        const depoisSemAcento = depois.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
-    // -------------------------
-    // 5) DESCRIÇÃO (primeiras palavras até "euros")
-    // -------------------------
-    let desc = texto.split("euros")[0].trim();
-
-    if (!desc) {
-      desc = texto.split(",")[0].trim();
+        if (depoisSemAcento.startsWith(nomeSemAcento)) {
+          categoriaEncontrada = c.id;
+        }
+      });
     }
 
-    if (desc) {
+    // fallback fuzzy
+    if (!categoriaEncontrada) {
+      categorias.forEach((c) => {
+        const nome = c.name.toLowerCase();
+        const nomeSemAcento = nome.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        const textoSemAcento = texto.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+        if (textoSemAcento.includes(nomeSemAcento)) {
+          categoriaEncontrada = c.id;
+        }
+      });
+    }
+
+    if (categoriaEncontrada) setCategoria(categoriaEncontrada);
+
+    // -------------------------
+    // 4) EMPRESA
+    // -------------------------
+    let empresaEncontrada = null;
+
+    const idxEmpresa = texto.indexOf("empresa ");
+    if (idxEmpresa !== -1) {
+      const depois = texto.slice(idxEmpresa + 8).trim();
+      empresas.forEach((e) => {
+        const nome = e.name.toLowerCase();
+        if (depois.startsWith(nome)) empresaEncontrada = e.name;
+      });
+    }
+
+    if (empresaEncontrada) setEmpresa(empresaEncontrada);
+
+    // -------------------------
+    // 5) DESCRIÇÃO (tudo antes de "categoria" ou "empresa")
+    // -------------------------
+    let desc = texto;
+
+    if (idxCategoria !== -1) desc = texto.slice(0, idxCategoria);
+    if (idxEmpresa !== -1) desc = texto.slice(0, idxEmpresa);
+
+    desc = desc.replace(/,/g, "").trim();
+
+    if (desc.length > 0) {
       desc = desc.charAt(0).toUpperCase() + desc.slice(1);
       setDescricao(desc);
     }
@@ -223,7 +246,6 @@ export default function Despesas() {
           Adicionar Despesa
         </h1>
 
-        {/* 🎤 BOTÃO DE VOZ */}
         <button
           onClick={iniciarVoz}
           className={`px-4 py-2 rounded-lg font-bold ${
@@ -234,7 +256,6 @@ export default function Despesas() {
         </button>
       </div>
 
-      {/* MOSTRAR TEXTO CAPTADO */}
       {transcript && (
         <div className="bg-[#222] p-3 rounded-lg text-gray-300 text-sm border border-[#333]">
           <strong>Voz:</strong> {transcript}
