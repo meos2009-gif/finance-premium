@@ -71,12 +71,24 @@ export default function Despesas() {
     recognition.start();
   }
 
-  // ⭐ INTERPRETADOR FINAL
+  // ⭐ INTERPRETADOR FINAL COM DESCRIÇÃO CORRIGIDA
   function interpretarVoz(texto) {
     texto = texto.toLowerCase();
 
     // -------------------------
-    // 1) VALOR
+    // 1) DESCRIÇÃO (primeira palavra)
+    // -------------------------
+    let partes = texto.split(" ");
+    let primeira = partes[0];
+
+    if (primeira) {
+      primeira = primeira.replace(/,/g, "").trim();
+      primeira = primeira.charAt(0).toUpperCase() + primeira.slice(1);
+      setDescricao(primeira);
+    }
+
+    // -------------------------
+    // 2) VALOR
     // -------------------------
     let valorExtraido = null;
 
@@ -105,7 +117,7 @@ export default function Despesas() {
     if (valorExtraido) setValor(valorExtraido);
 
     // -------------------------
-    // 2) DATA
+    // 3) DATA
     // -------------------------
     const meses = {
       janeiro: "01", fevereiro: "02", março: "03", abril: "04", maio: "05",
@@ -126,7 +138,7 @@ export default function Despesas() {
     }
 
     // -------------------------
-    // 3) CATEGORIA (prioridade: depois de "categoria")
+    // 4) CATEGORIA (corrigida)
     // -------------------------
     let categoriaEncontrada = null;
 
@@ -144,7 +156,6 @@ export default function Despesas() {
       });
     }
 
-    // fallback fuzzy
     if (!categoriaEncontrada) {
       categorias.forEach((c) => {
         const nome = c.name.toLowerCase();
@@ -160,7 +171,7 @@ export default function Despesas() {
     if (categoriaEncontrada) setCategoria(categoriaEncontrada);
 
     // -------------------------
-    // 4) EMPRESA
+    // 5) EMPRESA
     // -------------------------
     let empresaEncontrada = null;
 
@@ -174,21 +185,6 @@ export default function Despesas() {
     }
 
     if (empresaEncontrada) setEmpresa(empresaEncontrada);
-
-    // -------------------------
-    // 5) DESCRIÇÃO (tudo antes de "categoria" ou "empresa")
-    // -------------------------
-    let desc = texto;
-
-    if (idxCategoria !== -1) desc = texto.slice(0, idxCategoria);
-    if (idxEmpresa !== -1) desc = texto.slice(0, idxEmpresa);
-
-    desc = desc.replace(/,/g, "").trim();
-
-    if (desc.length > 0) {
-      desc = desc.charAt(0).toUpperCase() + desc.slice(1);
-      setDescricao(desc);
-    }
   }
 
   async function handleSubmit(e) {
