@@ -13,6 +13,10 @@ export default function Despesas() {
   const [categoria, setCategoria] = useState("");
   const [empresa, setEmpresa] = useState("");
 
+  // 🎤 ESTADO PARA VOZ
+  const [listening, setListening] = useState(false);
+  const [transcript, setTranscript] = useState("");
+
   useEffect(() => {
     async function load() {
       const { data: session } = await supabase.auth.getUser();
@@ -34,6 +38,99 @@ export default function Despesas() {
     }
     load();
   }, []);
+
+  // 🎤 INICIAR RECONHECIMENTO DE VOZ
+  function iniciarVoz() {
+    const SpeechRecognition =
+      window.SpeechRecognition || window.webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+      alert("O teu dispositivo não suporta reconhecimento de voz.");
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = "pt-PT";
+    recognition.continuous = false;
+    recognition.interimResults = false;
+
+    setListening(true);
+
+    recognition.onresult = (event) => {
+      const texto = event.results[0][0].transcript.toLowerCase();
+      setTranscript(texto);
+      interpretarVoz(texto);
+    };
+
+    recognition.onerror = () => {
+      alert("Não consegui ouvir claramente. Tenta novamente.");
+    };
+
+    recognition.onend = () => {
+      setListening(false);
+    };
+
+    recognition.start();
+  }
+
+  // 🎤 INTERPRETAR TEXTO FALADO
+  function interpretarVoz(texto) {
+    // VALOR
+    const matchValor = texto.match(/(\d+[.,]?\d*)/);
+    if (matchValor) {
+      setValor(matchValor[0].replace(",", "."));
+    }
+
+    // DATA
+    const meses = {
+      janeiro: "01",
+      fevereiro: "02",
+      março: "03",
+      abril: "04",
+      maio: "05",
+      junho: "06",
+      julho: "07",
+      agosto: "08",
+      setembro: "09",
+      outubro: "10",
+      novembro: "11",
+      dezembro: "12",
+    };
+
+    const regexData = /dia (\d{1,2}) (de )?([a-zç]+)/;
+    const matchData = texto.match(regexData);
+
+    if (matchData) {
+      const dia = matchData[1].padStart(2, "0");
+      const mes = meses[matchData[3]];
+      if (mes) {
+        const anoAtual = new Date().getFullYear();
+        setData(`${anoAtual}-${mes}-${dia}`);
+      }
+    }
+
+    // CATEGORIA
+    categorias.forEach((c) => {
+      if (texto.includes(c.name.toLowerCase())) {
+        setCategoria(c.id);
+      }
+    });
+
+    // EMPRESA
+    empresas.forEach((e) => {
+      if (texto.includes(e.name.toLowerCase())) {
+        setEmpresa(e.name);
+      }
+    });
+
+    // DESCRIÇÃO = tudo antes do valor
+    if (matchValor) {
+      const partes = texto.split(" ");
+      const indexValor = partes.indexOf(matchValor[0]);
+      const desc = partes.slice(0, indexValor).join(" ");
+      setDescricao(desc.charAt(0).toUpperCase() + desc.slice(1));
+    }
+  }
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -80,6 +177,7 @@ export default function Despesas() {
     setData("");
     setCategoria("");
     setEmpresa("");
+    setTranscript("");
   }
 
   return (
@@ -88,7 +186,24 @@ export default function Despesas() {
         <h1 className="text-2xl font-bold text-[#facc15]">
           Adicionar Despesa
         </h1>
+
+        {/* 🎤 BOTÃO DE VOZ */}
+        <button
+          onClick={iniciarVoz}
+          className={`px-4 py-2 rounded-lg font-bold ${
+            listening ? "bg-red-500" : "bg-green-500"
+          }`}
+        >
+          {listening ? "🎙️ A ouvir..." : "🎤 Inserir por Voz"}
+        </button>
       </div>
+
+      {/* MOSTRAR TEXTO CAPTADO */}
+      {transcript && (
+        <div className="bg-[#222] p-3 rounded-lg text-gray-300 text-sm border border-[#333]">
+          <strong>Voz:</strong> {transcript}
+        </div>
+      )}
 
       <PremiumForm title="Nova Despesa" onSubmit={handleSubmit}>
         <PremiumInput
