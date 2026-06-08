@@ -73,31 +73,53 @@ export default function Despesas() {
     recognition.start();
   }
 
-  // 🎤 INTERPRETAR TEXTO FALADO
+  // 🎤 INTERPRETAR TEXTO FALADO (VERSÃO FINAL)
   function interpretarVoz(texto) {
-    // VALOR
-    const matchValor = texto.match(/(\d+[.,]?\d*)/);
-    if (matchValor) {
-      setValor(matchValor[0].replace(",", "."));
+    texto = texto.toLowerCase();
+
+    // -------------------------
+    // 1) VALOR (inclui "50 euros e vinte centimos")
+    // -------------------------
+    let valorExtraido = null;
+
+    // números normais
+    const numero = texto.match(/(\d+[.,]?\d*)/);
+    if (numero) {
+      valorExtraido = numero[0].replace(",", ".");
     }
 
-    // DATA
+    // "vinte centimos", "cinquenta euros", etc.
+    if (texto.includes("cent")) {
+      const partes = texto.split(" ");
+      let euros = 0;
+      let centimos = 0;
+
+      partes.forEach((p, i) => {
+        if (p === "euros" || p === "euro") {
+          const n = parseFloat(partes[i - 1].replace(",", "."));
+          if (!isNaN(n)) euros = n;
+        }
+        if (p.startsWith("cent")) {
+          const n = parseFloat(partes[i - 1].replace(",", "."));
+          if (!isNaN(n)) centimos = n;
+        }
+      });
+
+      valorExtraido = euros + centimos / 100;
+    }
+
+    if (valorExtraido) setValor(valorExtraido);
+
+    // -------------------------
+    // 2) DATA ("30 de maio")
+    // -------------------------
     const meses = {
-      janeiro: "01",
-      fevereiro: "02",
-      março: "03",
-      abril: "04",
-      maio: "05",
-      junho: "06",
-      julho: "07",
-      agosto: "08",
-      setembro: "09",
-      outubro: "10",
-      novembro: "11",
-      dezembro: "12",
+      janeiro: "01", fevereiro: "02", março: "03", abril: "04", maio: "05",
+      junho: "06", julho: "07", agosto: "08", setembro: "09",
+      outubro: "10", novembro: "11", dezembro: "12"
     };
 
-    const regexData = /dia (\d{1,2}) (de )?([a-zç]+)/;
+    const regexData = /(\d{1,2}) (de )?([a-zç]+)/;
     const matchData = texto.match(regexData);
 
     if (matchData) {
@@ -109,26 +131,40 @@ export default function Despesas() {
       }
     }
 
-    // CATEGORIA
+    // -------------------------
+    // 3) CATEGORIA (fuzzy match)
+    // -------------------------
     categorias.forEach((c) => {
-      if (texto.includes(c.name.toLowerCase())) {
+      const nome = c.name.toLowerCase();
+      const palavras = nome.split(" ");
+      const bate = palavras.some((p) => texto.includes(p));
+      if (bate) {
         setCategoria(c.id);
       }
     });
 
-    // EMPRESA
+    // -------------------------
+    // 4) EMPRESA (fuzzy match)
+    // -------------------------
     empresas.forEach((e) => {
-      if (texto.includes(e.name.toLowerCase())) {
+      const nome = e.name.toLowerCase();
+      if (texto.includes(nome)) {
         setEmpresa(e.name);
       }
     });
 
-    // DESCRIÇÃO = tudo antes do valor
-    if (matchValor) {
-      const partes = texto.split(" ");
-      const indexValor = partes.indexOf(matchValor[0]);
-      const desc = partes.slice(0, indexValor).join(" ");
-      setDescricao(desc.charAt(0).toUpperCase() + desc.slice(1));
+    // -------------------------
+    // 5) DESCRIÇÃO (primeiras palavras até "euros")
+    // -------------------------
+    let desc = texto.split("euros")[0].trim();
+
+    if (!desc) {
+      desc = texto.split(",")[0].trim();
+    }
+
+    if (desc) {
+      desc = desc.charAt(0).toUpperCase() + desc.slice(1);
+      setDescricao(desc);
     }
   }
 
