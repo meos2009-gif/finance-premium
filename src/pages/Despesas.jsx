@@ -396,10 +396,14 @@ export default function Despesas() {
         </div>
       </PremiumForm>
 
-      {showQR && (
+     {showQR && (
   <div
-    className="fixed inset-0 z-50 bg-black/60 backdrop-blur-md flex items-center justify-center"
+    className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center"
     onClick={() => setShowQR(false)}
+    style={{
+      backdropFilter: "blur(10px)",     // 👈 blur aplicado ao fundo
+      WebkitBackdropFilter: "blur(10px)"
+    }}
   >
     <div
       className="bg-[#111] border border-[#333] rounded-xl w-full max-w-md mx-4 p-4 flex flex-col gap-4 relative"
@@ -419,15 +423,14 @@ export default function Despesas() {
       </div>
 
       <div
-  id="qr-reader"
-  className="w-full overflow-hidden rounded-lg"
-  style={{
-    pointerEvents: "auto",
-    height: "350px",
-    maxHeight: "80vh"
-  }}
-/>
-
+        id="qr-reader"
+        className="w-full overflow-hidden rounded-lg"
+        style={{
+          pointerEvents: "auto",
+          height: "350px",
+          maxHeight: "80vh"
+        }}
+      />
     </div>
   </div>
 )}
