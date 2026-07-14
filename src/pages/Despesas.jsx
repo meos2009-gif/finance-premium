@@ -82,23 +82,27 @@ export default function Despesas() {
     });
 
     const texto = resultado.data.text;
+    console.log("OCR TEXTO:", texto);
 
-    // regex melhorado para datas pequenas
+    // regex melhorado para datas Lidl
     const regexData =
-      /(20\d{2}[./-]\d{2}[./-]\d{2})|(\d{2}[./-]\d{2}[./-]20\d{2})|(\d{4}-\d{2}-\d{2})/;
+      /(20\d{2}[./-]\d{2}[./-]\d{2})|(\d{2}[./-]\d{2}[./-]\d{2})|(\d{2}[./-]\d{2}[./-]20\d{2})|(\d{4}-\d{2}-\d{2})/;
 
     const matchData = texto.match(regexData);
     if (matchData) {
       let dataStr = matchData[0].replace(/[.\/]/g, "-");
       const partes = dataStr.split("-");
-      if (partes[0].length === 2) {
-        const ano = "20" + partes[2];
-        const mes = partes[1];
-        const dia = partes[0];
-        setData(`${ano}-${mes}-${dia}`);
-      } else {
-        setData(dataStr);
+
+      // converter ano 2 dígitos → 20xx
+      if (partes[2].length === 2) {
+        partes[2] = "20" + partes[2];
       }
+
+      const ano = partes[2];
+      const mes = partes[1];
+      const dia = partes[0];
+
+      setData(`${ano}-${mes}-${dia}`);
     }
 
     // número da fatura (ex: 02680826/010216)
@@ -131,16 +135,18 @@ export default function Despesas() {
     ctx.drawImage(video, 0, 0, 1920, 1080);
 
     const dataUrl = canvas.toDataURL("image/png");
-   // MOSTRAR A IMAGEM CAPTURADA NO ECRÃ
-const img = document.createElement("img");
-img.src = dataUrl;
-img.style.width = "90%";
-img.style.border = "3px solid #facc15";
-img.style.margin = "20px auto";
-img.style.display = "block";
-img.style.borderRadius = "10px";
-document.body.appendChild(img);
-await ocrDaFotoTalão(dataUrl);
+
+    // mostrar imagem capturada no ecrã (debug)
+    const img = document.createElement("img");
+    img.src = dataUrl;
+    img.style.width = "90%";
+    img.style.border = "3px solid #facc15";
+    img.style.margin = "20px auto";
+    img.style.display = "block";
+    img.style.borderRadius = "10px";
+    document.body.appendChild(img);
+
+    await ocrDaFotoTalão(dataUrl);
   }
 
   // fluxo único: abrir câmara, ler QR, esperar 1s, tirar foto, OCR
