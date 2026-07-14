@@ -216,7 +216,7 @@ export default function Despesas() {
     setEmpresa(`NIF ${nifLimpo}`);
   }
 
-  // Descrição (FS = Fatura Simplificada)
+  // Descrição fixa
   setDescricao("Fatura");
 
   // ⭐ VALOR TOTAL (O)
@@ -227,9 +227,9 @@ export default function Despesas() {
     setValor(valorLimpo);
   }
 
-  // ⭐ DATA — QR do Lidl NÃO tem data → não preencher aqui
-  // Deixa o campo vazio para o OCR preencher
+  // ⭐ NÃO preencher data ainda (vamos testar só o valor)
 }
+
 
   // ============================
   // QR CODE — SCANNER (CÂMARA TRASEIRA)
