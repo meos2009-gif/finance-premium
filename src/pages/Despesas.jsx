@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "../supabaseClient";
 import PremiumForm from "../components/PremiumForm";
 import PremiumInput from "../components/PremiumInput";
@@ -15,14 +15,13 @@ export default function Despesas() {
   const [categoria, setCategoria] = useState("");
   const [empresa, setEmpresa] = useState("");
 
-  const [listening, setListening] = useState(false);
-  const [transcript, setTranscript] = useState("");
+  const [showQRFlow, setShowQRFlow] = useState(false);
 
-  const [showQR, setShowQR] = useState(false);
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
+  const streamRef = useRef(null);
 
-  // ============================
-  // CARREGAR CATEGORIAS + EMPRESAS
-  // ============================
+  // carregar categorias + empresas
   useEffect(() => {
     async function load() {
       const { data: session } = await supabase.auth.getUser();
@@ -32,222 +31,27 @@ export default function Despesas() {
         .from("categories")
         .select("*")
         .eq("user_id", session.user.id);
-
       setCategorias(cat || []);
 
       const { data: emp } = await supabase
         .from("empresas")
         .select("*")
         .eq("user_id", session.user.id);
-
       setEmpresas(emp || []);
     }
     load();
   }, []);
 
-  // ============================
-  // VOZ
-  // ============================
-  function iniciarVoz() {
-    const SpeechRecognition =
-      window.SpeechRecognition || window.webkitSpeechRecognition;
-
-    if (!SpeechRecognition) {
-      alert("O teu dispositivo não suporta reconhecimento de voz.");
-      return;
-    }
-
-    const recognition = new SpeechRecognition();
-    recognition.lang = "pt-PT";
-    recognition.continuous = false;
-    recognition.interimResults = false;
-
-    setListening(true);
-
-    recognition.onresult = (event) => {
-      const texto = event.results[0][0].transcript.toLowerCase();
-      setTranscript(texto);
-      interpretarVoz(texto);
-    };
-
-    recognition.onerror = () => {
-      alert("Não consegui ouvir claramente. Tenta novamente.");
-    };
-
-    recognition.onend = () => {
-      setListening(false);
-    };
-
-    recognition.start();
-  }
-
-  function interpretarVoz(texto) {
-    texto = texto.toLowerCase();
-
-    let partes = texto.split(" ");
-    let primeira = partes[0];
-
-    if (primeira) {
-      primeira = primeira.replace(/,/g, "").trim();
-      primeira = primeira.charAt(0).toUpperCase() + primeira.slice(1);
-      setDescricao(primeira);
-    }
-
-    let valorExtraido = null;
-
-    const numero = texto.match(/(\d+[.,]?\d*)/);
-    if (numero) valorExtraido = numero[0].replace(",", ".");
-
-    if (texto.includes("cent")) {
-      const partesValor = texto.split(" ");
-      let euros = 0;
-      let centimos = 0;
-
-      partesValor.forEach((p, i) => {
-        if (p === "euros" || p === "euro") {
-          const n = parseFloat(partesValor[i - 1].replace(",", "."));
-          if (!isNaN(n)) euros = n;
-        }
-        if (p.startsWith("cent")) {
-          const n = parseFloat(partesValor[i - 1].replace(",", "."));
-          if (!isNaN(n)) centimos = n;
-        }
-      });
-
-      valorExtraido = euros + centimos / 100;
-    }
-
-    if (valorExtraido) setValor(valorExtraido);
-
-    const meses = {
-      janeiro: "01",
-      fevereiro: "02",
-      março: "03",
-      abril: "04",
-      maio: "05",
-      junho: "06",
-      julho: "07",
-      agosto: "08",
-      setembro: "09",
-      outubro: "10",
-      novembro: "11",
-      dezembro: "12",
-    };
-
-    const regexData = /(\d{1,2}) (de )?([a-zç]+)/;
-    const matchData = texto.match(regexData);
-
-    if (matchData) {
-      const dia = matchData[1].padStart(2, "0");
-      const mes = meses[matchData[3]];
-      if (mes) {
-        const anoAtual = new Date().getFullYear();
-        setData(`${anoAtual}-${mes}-${dia}`);
-      }
-    }
-
-    let categoriaEncontrada = null;
-
-    const idxCategoria = texto.indexOf("categoria ");
-    if (idxCategoria !== -1) {
-      const depois = texto.slice(idxCategoria + 10).trim();
-      categorias.forEach((c) => {
-        const nome = c.name.toLowerCase();
-        const nomeSemAcento = nome
-          .normalize("NFD")
-          .replace(/[\u0300-\u036f]/g, "");
-        const depoisSemAcento = depois
-          .normalize("NFD")
-          .replace(/[\u0300-\u036f]/g, "");
-
-        if (depoisSemAcento.startsWith(nomeSemAcento)) {
-          categoriaEncontrada = c.id;
-        }
-      });
-    }
-
-    if (!categoriaEncontrada) {
-      categorias.forEach((c) => {
-        const nome = c.name.toLowerCase();
-        const nomeSemAcento = nome
-          .normalize("NFD")
-          .replace(/[\u0300-\u036f]/g, "");
-        const textoSemAcento = texto
-          .normalize("NFD")
-          .replace(/[\u0300-\u036f]/g, "");
-
-        if (textoSemAcento.includes(nomeSemAcento)) {
-          categoriaEncontrada = c.id;
-        }
-      });
-    }
-
-    if (categoriaEncontrada) setCategoria(categoriaEncontrada);
-
-    let empresaEncontrada = null;
-
-    const idxEmpresa = texto.indexOf("empresa ");
-    if (idxEmpresa !== -1) {
-      const depois = texto.slice(idxEmpresa + 8).trim();
-      empresas.forEach((e) => {
-        const nome = e.name.toLowerCase();
-        if (depois.startsWith(nome)) empresaEncontrada = e.name;
-      });
-    }
-
-    if (empresaEncontrada) setEmpresa(empresaEncontrada);
-  }
-
-  // ============================
-  // OCR PARA DATA REAL
-  // ============================
-  async function lerDataDaImagem(imagem) {
-    const resultado = await Tesseract.recognize(imagem, "por", {
-      logger: (m) => console.log(m),
-    });
-
-    const texto = resultado.data.text;
-
-    const regexData =
-      /(\d{4}-\d{2}-\d{2})|(\d{2}[./-]\d{2}[./-]\d{2,4})/;
-
-    const match = texto.match(regexData);
-
-    if (!match) return null;
-
-    let dataStr = match[0];
-
-    dataStr = dataStr.replace(/[.\/]/g, "-");
-
-    const partes = dataStr.split("-");
-
-    if (partes[0].length === 2) {
-      const ano = "20" + partes[2];
-      const mes = partes[1];
-      const dia = partes[0];
-      return `${ano}-${mes}-${dia}`;
-    }
-
-    return dataStr;
-  }
-
-  // ============================
-  // QR CODE — INTERPRETAÇÃO AT (FORMATO COM *)
-  // ============================
+  // interpretar QR AT
   function interpretarQR(qrText) {
     qrText = qrText.trim();
     const partes = qrText.split("*").map((p) => p.trim());
 
     let dados = {};
-
     partes.forEach((p) => {
       const [key, value] = p.split(":");
       if (!key || !value) return;
-
-      const k = key.trim();
-      const v = value.trim();
-
-      dados[k] = v;
+      dados[key.trim()] = value.trim();
     });
 
     // NIF (A)
@@ -256,10 +60,10 @@ export default function Despesas() {
       setEmpresa(`NIF ${nifLimpo}`);
     }
 
-    // Descrição fixa
+    // Descrição
     setDescricao("Fatura");
 
-    // VALOR TOTAL (O)
+    // Valor total (O)
     if (dados["O"]) {
       const valorLimpo = dados["O"]
         .replace(",", ".")
@@ -267,65 +71,156 @@ export default function Despesas() {
       setValor(valorLimpo);
     }
 
-    // Data fica vazia para ser preenchida via OCR ou manualmente
+    // data via foto/OCR → deixa vazio por agora
     setData("");
   }
 
-  // ============================
-  // QR CODE — SCANNER (CÂMARA TRASEIRA)
-  // ============================
-  useEffect(() => {
-    if (!showQR) return;
+  // OCR da foto do talão (talão inteiro)
+  async function ocrDaFotoTalão(imageSource) {
+    const resultado = await Tesseract.recognize(imageSource, "por", {
+      logger: (m) => console.log(m),
+    });
 
-    async function startScanner() {
+    const texto = resultado.data.text;
+
+    // data (vários formatos possíveis)
+    const regexData =
+      /(\d{4}-\d{2}-\d{2})|(\d{2}[./-]\d{2}[./-]\d{2,4})/;
+    const matchData = texto.match(regexData);
+    if (matchData) {
+      let dataStr = matchData[0].replace(/[.\/]/g, "-");
+      const partes = dataStr.split("-");
+      if (partes[0].length === 2) {
+        const ano = "20" + partes[2];
+        const mes = partes[1];
+        const dia = partes[0];
+        setData(`${ano}-${mes}-${dia}`);
+      } else {
+        setData(dataStr);
+      }
+    }
+
+    // número da fatura (ex: 02680826/010216)
+    const matchNum = texto.match(/\d{6,}\/\d{6}/);
+    if (matchNum) {
+      setDescricao(`Fatura ${matchNum[0]}`);
+    }
+
+    // loja (ex: FAFE, E.N 206)
+    const matchLoja = texto.match(/FAFE|E\.N 206|Terminal Pagamento Automático/);
+    if (matchLoja && !empresa.startsWith("NIF")) {
+      setEmpresa(matchLoja[0]);
+    }
+  }
+
+  // capturar frame do vídeo e enviar para OCR
+  async function capturarFotoETalão() {
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    if (!video || !canvas) return;
+
+    const width = video.videoWidth;
+    const height = video.videoHeight;
+    if (!width || !height) return;
+
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(video, 0, 0, width, height);
+
+    const dataUrl = canvas.toDataURL("image/png");
+    await ocrDaFotoTalão(dataUrl);
+  }
+
+  // fluxo único: abrir câmara, ler QR, esperar 1s, tirar foto, OCR
+  useEffect(() => {
+    if (!showQRFlow) return;
+
+    let html5QrCode;
+
+    async function startFlow() {
       try {
         const devices = await Html5Qrcode.getCameras();
-
         if (!devices || devices.length === 0) {
           alert("Nenhuma câmara encontrada.");
+          setShowQRFlow(false);
           return;
         }
 
-        // ⭐ SOLUÇÃO DEFINITIVA: usar sempre a última câmara (traseira)
-const backCamera = devices[devices.length - 1];
+        const backCamera = devices[devices.length - 1];
 
-        const html5QrCode = new Html5Qrcode("qr-reader");
+        html5QrCode = new Html5Qrcode("qr-reader");
 
         await html5QrCode.start(
           backCamera.id,
           {
             fps: 10,
-            qrbox: 350,
+            qrbox: 300,
             aspectRatio: 1.0,
             disableFlip: true,
           },
-          (qrText) => {
+          async (qrText) => {
+            // QR lido → preencher campos
             interpretarQR(qrText);
-            html5QrCode.stop();
-            setShowQR(false);
+
+            // parar QR
+            await html5QrCode.stop();
+
+            // agora abrir stream manual para capturar foto do talão
+            try {
+              const stream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: "environment" },
+              });
+              streamRef.current = stream;
+              if (videoRef.current) {
+                videoRef.current.srcObject = stream;
+                await videoRef.current.play();
+              }
+
+              // delay de 1 segundo para posicionar talão
+              setTimeout(async () => {
+                await capturarFotoETalão();
+
+                // parar stream
+                if (videoRef.current) {
+                  videoRef.current.pause();
+                }
+                if (streamRef.current) {
+                  streamRef.current.getTracks().forEach((t) => t.stop());
+                  streamRef.current = null;
+                }
+
+                setShowQRFlow(false);
+              }, 1000);
+            } catch (err) {
+              console.error("Erro ao capturar foto do talão:", err);
+              setShowQRFlow(false);
+            }
           },
           (error) => {
             console.log("Erro QR:", error);
           }
         );
       } catch (err) {
-        console.error("Erro ao iniciar scanner:", err);
+        console.error("Erro ao iniciar fluxo QR+foto:", err);
+        setShowQRFlow(false);
       }
     }
 
-    startScanner();
+    startFlow();
 
     return () => {
       try {
-        const qr = new Html5Qrcode("qr-reader");
-        qr.stop();
+        if (html5QrCode) html5QrCode.stop();
       } catch {}
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((t) => t.stop());
+        streamRef.current = null;
+      }
     };
-  }, [showQR]);
+  }, [showQRFlow]);
 
-  // ============================
-  // SUBMETER FORMULÁRIO
-  // ============================
+  // submit
   async function handleSubmit(e) {
     e.preventDefault();
 
@@ -338,7 +233,6 @@ const backCamera = devices[devices.length - 1];
       const existente = empresas.find(
         (x) => x.name.toLowerCase() === empresa.toLowerCase()
       );
-
       if (existente) {
         empresaId = existente.id;
       } else {
@@ -350,7 +244,6 @@ const backCamera = devices[devices.length - 1];
           })
           .select()
           .single();
-
         empresaId = nova.id;
         setEmpresas((prev) => [...prev, nova]);
       }
@@ -371,12 +264,8 @@ const backCamera = devices[devices.length - 1];
     setData("");
     setCategoria("");
     setEmpresa("");
-    setTranscript("");
   }
 
-  // ============================
-  // JSX
-  // ============================
   return (
     <div className="text-white flex flex-col gap-10 px-4 md:px-0 w-full">
       <div className="flex justify-between items-center gap-3">
@@ -384,30 +273,13 @@ const backCamera = devices[devices.length - 1];
           Adicionar Despesa
         </h1>
 
-        <div className="flex gap-2">
-          <button
-            onClick={iniciarVoz}
-            className={`px-4 py-2 rounded-lg font-bold ${
-              listening ? "bg-red-500" : "bg-green-500"
-            }`}
-          >
-            {listening ? "🎙️ A ouvir..." : "🎤 Inserir por Voz"}
-          </button>
-
-          <button
-            onClick={() => setShowQR(true)}
-            className="px-4 py-2 rounded-lg font-bold bg-purple-600"
-          >
-            📷 Lançar por QR Code
-          </button>
-        </div>
+        <button
+          onClick={() => setShowQRFlow(true)}
+          className="px-4 py-2 rounded-lg font-bold bg-purple-600"
+        >
+          📷 Lançar Fatura (QR + Foto)
+        </button>
       </div>
-
-      {transcript && (
-        <div className="bg-[#222] p-3 rounded-lg text-gray-300 text-sm border border-[#333]">
-          <strong>Voz:</strong> {transcript}
-        </div>
-      )}
 
       <PremiumForm title="Nova Despesa" onSubmit={handleSubmit}>
         <PremiumInput
@@ -436,29 +308,6 @@ const backCamera = devices[devices.length - 1];
         />
 
         <div className="flex flex-col gap-1">
-          <label className="text-sm text-gray-300">
-            Ler data real da fatura (OCR)
-          </label>
-          <input
-            type="file"
-            accept="image/*"
-            onChange={async (e) => {
-              const file = e.target.files[0];
-              if (!file) return;
-
-              const dataReal = await lerDataDaImagem(file);
-
-              if (dataReal) {
-                setData(dataReal);
-              } else {
-                alert("Não consegui ler a data da fatura.");
-              }
-            }}
-            className="bg-[#111] border border-[#333] text-white rounded-lg px-4 py-3"
-          />
-        </div>
-
-        <div className="flex flex-col gap-1">
           <label className="text-sm text-gray-300">Categoria</label>
           <select
             value={categoria}
@@ -477,7 +326,6 @@ const backCamera = devices[devices.length - 1];
 
         <div className="flex flex-col gap-1">
           <label className="text-sm text-gray-300">Empresa</label>
-
           <input
             list="lista-empresas"
             value={empresa}
@@ -486,7 +334,6 @@ const backCamera = devices[devices.length - 1];
             className="bg-[#111] border border-[#333] text-white rounded-lg px-4 py-3"
             required
           />
-
           <datalist id="lista-empresas">
             {empresas.map((e) => (
               <option key={e.id} value={e.name} />
@@ -495,10 +342,9 @@ const backCamera = devices[devices.length - 1];
         </div>
       </PremiumForm>
 
-      {showQR && (
+      {showQRFlow && (
         <div
           className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center"
-          onClick={() => setShowQR(false)}
           style={{
             backdropFilter: "blur(10px)",
             WebkitBackdropFilter: "blur(10px)",
@@ -506,30 +352,28 @@ const backCamera = devices[devices.length - 1];
         >
           <div
             className="bg-[#111] border border-[#333] rounded-xl w-full max-w-md mx-4 p-4 flex flex-col gap-4 relative"
-            style={{ pointerEvents: "auto" }}
-            onClick={(e) => e.stopPropagation()}
           >
             <div className="flex justify-between items-center">
               <h2 className="text-lg font-bold text-[#facc15]">
-                Ler QR Code da Fatura
+                Ler QR e capturar talão
               </h2>
-              <button
-                onClick={() => setShowQR(false)}
-                className="text-sm text-gray-300 hover:text-white"
-              >
-                Fechar ✕
-              </button>
             </div>
 
             <div
               id="qr-reader"
-              className="w-full overflow-hidden rounded-lg"
-              style={{
-                pointerEvents: "auto",
-                height: "350px",
-                maxHeight: "80vh",
-              }}
+              className="w-full overflow-hidden rounded-lg mb-4"
+              style={{ height: "260px" }}
             />
+
+            {/* vídeo oculto para captura da foto do talão */}
+            <video
+              ref={videoRef}
+              style={{ display: "none" }}
+              playsInline
+              muted
+            />
+
+            <canvas ref={canvasRef} style={{ display: "none" }} />
           </div>
         </div>
       )}
