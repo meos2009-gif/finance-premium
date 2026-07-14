@@ -2,7 +2,155 @@ import { useEffect, useState, useRef } from "react";
 import { supabase } from "../supabaseClient";
 import PremiumForm from "../components/PremiumForm";
 import PremiumInput from "../components/PremiumInput";
+import { Html5Qrcode } from "html5-qrcode";
 import Tesseract from "tesseract.js";
+
+// -----------------------------
+// INCM + simplificação de nome
+// -----------------------------
+function simplificarNomeLegal(nome) {
+  if (!nome) return null;
+
+  const mapaSimplificado = {
+    "Modelo Continente": "Continente",
+    "Jerónimo Martins": "Pingo Doce",
+    "Lidl": "Lidl",
+    "Repsol": "Repsol",
+    "Galp": "Galp",
+    "Auchan": "Auchan",
+    "Minipreço": "Minipreço",
+    "Intermarché": "Intermarché",
+    "Prio": "Prio",
+    "McDonald's": "McDonald's",
+    "Burger King": "Burger King",
+    "Worten": "Worten",
+    "Fnac": "Fnac",
+    "Decathlon": "Decathlon",
+    "Leroy Merlin": "Leroy Merlin",
+    "IKEA": "IKEA",
+    "Bricomarché": "Bricomarché",
+    "BP": "BP",
+    "Jumbo": "Jumbo",
+    "MEO": "MEO",
+    "Vodafone": "Vodafone",
+    "NOS": "NOS"
+  };
+
+  for (const chave in mapaSimplificado) {
+    if (nome.includes(chave)) {
+      return mapaSimplificado[chave];
+    }
+  }
+
+  return nome.split(",")[0];
+}
+
+async function buscarNomeLegalINCM(nif) {
+  try {
+    const resposta = await fetch(`https://transparencia.incm.pt/api/empresas?nif=${nif}`);
+    const dados = await resposta.json();
+
+    if (dados && dados.nome) {
+      return simplificarNomeLegal(dados.nome);
+    }
+
+    return null;
+  } catch (e) {
+    return null;
+  }
+}
+
+// -----------------------------
+// OCR helpers
+// -----------------------------
+function extrairData(texto) {
+  const regexData =
+    /(\d{4}[\/\-\.]\d{2}[\/\-\.]\d{2})|(\d{2}[\/\-\.]\d{2}[\/\-\.]\d{4})/;
+
+  const d = texto.match(regexData);
+  if (!d) return null;
+
+  let dt = d[0].replace(/\./g, "-").replace(/\//g, "-");
+
+  if (dt.includes("-")) {
+    const partes = dt.split("-");
+    if (partes[0].length === 2) {
+      dt = `${partes[2]}-${partes[1]}-${partes[0]}`;
+    }
+  }
+
+  return dt;
+}
+
+function extrairNomeLoja(texto) {
+  const lojas = [
+    "CONTINENTE",
+    "PINGO DOCE",
+    "LIDL",
+    "REPSOL",
+    "GALP",
+    "AUCHAN",
+    "MINIPREÇO",
+    "INTERMARCHÉ",
+    "PRIO",
+    "MCDONALD",
+    "BURGER KING",
+    "WORTEN",
+    "FNAC",
+    "DECATHLON",
+    "LEROY MERLIN",
+    "IKEA",
+    "BRICOMARCHÉ",
+    "BP",
+    "JUMBO",
+    "MEO",
+    "VODAFONE",
+    "NOS"
+  ];
+
+  const linhas = texto.split("\n").map(l => l.trim().toUpperCase());
+
+  for (const linha of linhas) {
+    for (const loja of lojas) {
+      if (linha.includes(loja)) return linha;
+    }
+  }
+
+  return null;
+}
+
+// -----------------------------
+// QR AT parser
+// -----------------------------
+function interpretarQR_AT(texto, setValor, setEmpresa) {
+  const partes = texto.split("*").map((p) => p.trim());
+  let dados = {};
+
+  partes.forEach((p) => {
+    const [key, value] = p.split(":");
+    if (!key || !value) return;
+    dados[key.trim()] = value.trim();
+  });
+
+  // Valor total (O)
+  if (dados["O"]) {
+    const v = dados["O"].replace(",", ".").replace(/[^0-9.]/g, "");
+    setValor(v);
+  }
+
+  // NIF (A) → INCM
+  if (dados["A"]) {
+    const nif = dados["A"].replace(/[^0-9]/g, "");
+
+    buscarNomeLegalINCM(nif).then((nome) => {
+      if (nome) {
+        setEmpresa(nome);
+      } else {
+        setEmpresa(`NIF ${nif}`);
+      }
+    });
+  }
+}
 
 export default function Despesas() {
   const [categorias, setCategorias] = useState([]);
@@ -20,96 +168,8 @@ export default function Despesas() {
   const streamRef = useRef(null);
 
   // -----------------------------
-  // OCR EXTRAÇÃO
+  // Carregar categorias e empresas
   // -----------------------------
-
-  function extrairValorTotal(texto) {
-    const linhas = texto.split("\n").map(l => l.trim().toUpperCase());
-    for (const linha of linhas) {
-      if (linha.includes("TOTAL")) {
-        const match = linha.match(/(\d+[.,]\d{2})/);
-        if (match) return match[1].replace(",", ".");
-      }
-    }
-    return null;
-  }
-
-  function extrairData(texto) {
-    const regexData =
-      /(\d{4}[\/\-\.]\d{2}[\/\-\.]\d{2})|(\d{2}[\/\-\.]\d{2}[\/\-\.]\d{4})/;
-
-    const d = texto.match(regexData);
-    if (!d) return null;
-
-    let dt = d[0].replace(/\./g, "-").replace(/\//g, "-");
-
-    if (dt.includes("-")) {
-      const partes = dt.split("-");
-      if (partes[0].length === 2) {
-        dt = `${partes[2]}-${partes[1]}-${partes[0]}`;
-      }
-    }
-
-    return dt;
-  }
-
-  function extrairNomeLoja(texto) {
-    const lojas = [
-      "CONTINENTE",
-      "PINGO DOCE",
-      "LIDL",
-      "REPSOL",
-      "GALP",
-      "AUCHAN",
-      "MINIPREÇO",
-      "INTERMARCHÉ",
-      "PRIO",
-      "MCDONALD",
-      "BURGER KING",
-      "WORTEN",
-      "FNAC",
-      "DECATHLON",
-      "LEROY MERLIN",
-      "IKEA",
-      "BRICOMARCHÉ",
-      "BP",
-      "JUMBO",
-      "MEO",
-      "VODAFONE",
-      "NOS"
-    ];
-
-    const linhas = texto.split("\n").map(l => l.trim().toUpperCase());
-
-    for (const linha of linhas) {
-      for (const loja of lojas) {
-        if (linha.includes(loja)) return linha;
-      }
-    }
-
-    return null;
-  }
-
-  async function lerFaturaCompleta(imageData) {
-    const result = await Tesseract.recognize(imageData, "por");
-    const texto = result.data.text;
-
-    const valorExtraido = extrairValorTotal(texto);
-    if (valorExtraido) setValor(valorExtraido);
-
-    const dataExtraida = extrairData(texto);
-    if (dataExtraida) setData(dataExtraida);
-
-    const lojaExtraida = extrairNomeLoja(texto);
-    if (lojaExtraida) setEmpresa(lojaExtraida);
-
-    setDescricao("Fatura");
-  }
-
-  // -----------------------------
-  // CARREGAR CATEGORIAS E EMPRESAS
-  // -----------------------------
-
   useEffect(() => {
     async function load() {
       const { data: session } = await supabase.auth.getUser();
@@ -131,9 +191,42 @@ export default function Despesas() {
   }, []);
 
   // -----------------------------
-  // CÂMARA + FOTO
+  // Ler fatura completa (OCR + QR AT)
   // -----------------------------
+  async function lerFaturaCompleta(imageData) {
+    // 1) OCR para texto
+    const result = await Tesseract.recognize(imageData, "por");
+    const texto = result.data.text;
 
+    // Data via OCR
+    const dataExtraida = extrairData(texto);
+    if (dataExtraida) setData(dataExtraida);
+
+    // Nome da loja via OCR
+    const lojaExtraida = extrairNomeLoja(texto);
+    if (lojaExtraida) setEmpresa(lojaExtraida);
+
+    // Descrição automática
+    setDescricao("Fatura");
+
+    // 2) QR AT via html5-qrcode (a partir da imagem)
+    const html5QrCode = new Html5Qrcode(/* id virtual */ "qr-reader-temp");
+
+    try {
+      const qrResult = await html5QrCode.scanFile(imageData, true);
+      // qrResult.text contém o QR AT
+      interpretarQR_AT(qrResult, setValor, setEmpresa);
+    } catch (e) {
+      console.log("Não foi possível ler QR AT da imagem:", e);
+      // Se falhar, pelo menos tens OCR de data + loja
+    } finally {
+      html5QrCode.clear();
+    }
+  }
+
+  // -----------------------------
+  // Câmara + foto
+  // -----------------------------
   async function abrirCameraParaFoto() {
     setShowCamera(true);
 
@@ -169,9 +262,8 @@ export default function Despesas() {
   }
 
   // -----------------------------
-  // SUBMETER DESPESA
+  // Submeter despesa
   // -----------------------------
-
   async function handleSubmit(e) {
     e.preventDefault();
 
@@ -220,9 +312,8 @@ export default function Despesas() {
   }
 
   // -----------------------------
-  // UI COMPLETA
+  // UI
   // -----------------------------
-
   return (
     <div className="text-white flex flex-col gap-10 px-4 md:px-0 w-full">
       
@@ -235,7 +326,7 @@ export default function Despesas() {
           onClick={() => abrirCameraParaFoto()}
           className="px-4 py-2 rounded-lg font-bold bg-purple-600"
         >
-          📸 Ler Fatura Completa (OCR Total)
+          📸 Ler Fatura Completa (OCR + QR AT)
         </button>
       </div>
 
