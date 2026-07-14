@@ -17,7 +17,6 @@ export default function Despesas() {
   const [showQR, setShowQR] = useState(false);
   const [fase, setFase] = useState("AT"); // AT → DATA
 
-  // carregar categorias + empresas
   useEffect(() => {
     async function load() {
       const { data: session } = await supabase.auth.getUser();
@@ -38,7 +37,6 @@ export default function Despesas() {
     load();
   }, []);
 
-  // interpretar QR AT (faturas portuguesas)
   function interpretarQR_AT(texto) {
     const partes = texto.split("*").map((p) => p.trim());
     let dados = {};
@@ -49,13 +47,11 @@ export default function Despesas() {
       dados[key.trim()] = value.trim();
     });
 
-    // valor total
     if (dados["O"]) {
       const v = dados["O"].replace(",", ".").replace(/[^0-9.]/g, "");
       setValor(v);
     }
 
-    // empresa via NIF
     if (dados["A"]) {
       const nif = dados["A"].replace(/[^0-9]/g, "");
       setEmpresa(`NIF ${nif}`);
@@ -64,7 +60,6 @@ export default function Despesas() {
     setDescricao("Fatura");
   }
 
-  // interpretar QR interno (data/hora)
   function interpretarQR_Data(texto) {
     const regexData = /(\d{4}-\d{2}-\d{2})/;
     const d = texto.match(regexData);
@@ -72,7 +67,6 @@ export default function Despesas() {
     if (d) setData(d[0]);
   }
 
-  // iniciar leitor QR
   async function iniciarLeitorSequencial() {
     const html5QrCode = new Html5Qrcode("qr-reader");
 
@@ -105,7 +99,7 @@ export default function Despesas() {
 
           await html5QrCode.stop();
           setShowQR(false);
-          setFase("AT"); // reset
+          setFase("AT");
 
           alert("Fatura lida com sucesso!");
         }
@@ -114,7 +108,6 @@ export default function Despesas() {
     );
   }
 
-  // submit
   async function handleSubmit(e) {
     e.preventDefault();
 
@@ -170,7 +163,7 @@ export default function Despesas() {
         <button
           onClick={() => {
             setShowQR(true);
-            iniciarLeitorSequencial();
+            setTimeout(() => iniciarLeitorSequencial(), 300);
           }}
           className="px-4 py-2 rounded-lg font-bold bg-purple-600"
         >
