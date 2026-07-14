@@ -19,6 +19,9 @@ export default function Despesas() {
 
   const [showQR, setShowQR] = useState(false);
 
+  // ============================
+  // CARREGAR CATEGORIAS + EMPRESAS
+  // ============================
   useEffect(() => {
     async function load() {
       const { data: session } = await supabase.auth.getUser();
@@ -41,6 +44,9 @@ export default function Despesas() {
     load();
   }, []);
 
+  // ============================
+  // VOZ
+  // ============================
   function iniciarVoz() {
     const SpeechRecognition =
       window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -74,7 +80,6 @@ export default function Despesas() {
     recognition.start();
   }
 
-  // VOZ
   function interpretarVoz(texto) {
     texto = texto.toLowerCase();
 
@@ -192,13 +197,17 @@ export default function Despesas() {
     if (empresaEncontrada) setEmpresa(empresaEncontrada);
   }
 
-  // QR CODE — INTERPRETAÇÃO AT
+  // ============================
+  // QR CODE — INTERPRETAÇÃO AT ROBUSTA
+  // ============================
   function interpretarQR(qrText) {
-    const partes = qrText.split(";");
+    qrText = qrText.trim();
+
+    const partes = qrText.split(";").map((p) => p.trim());
     let dados = {};
 
     partes.forEach((p) => {
-      const [key, value] = p.split(":");
+      const [key, value] = p.split(":").map((x) => x.trim());
       if (key && value) dados[key] = value;
     });
 
@@ -207,21 +216,35 @@ export default function Despesas() {
     const dataFatura = dados["C"];
     const totalComIva = dados["F"] || dados["D"];
 
-    if (totalComIva) setValor(totalComIva);
-    if (dataFatura) setData(dataFatura);
+    // NIF
+    if (nif) {
+      const nifLimpo = nif.replace(/[^0-9]/g, "");
+      setEmpresa(`NIF ${nifLimpo}`);
+    }
 
+    // Descrição
     if (numeroFatura) {
       setDescricao(`Fatura ${numeroFatura}`);
     } else {
       setDescricao("Fatura");
     }
 
-    if (nif) {
-      setEmpresa(`NIF ${nif}`);
+    // Valor
+    if (totalComIva) {
+      const valorLimpo = totalComIva.replace(",", ".").replace(/[^0-9.]/g, "");
+      setValor(valorLimpo);
+    }
+
+    // Data
+    if (dataFatura) {
+      const dataLimpa = dataFatura.replace(/[^0-9-]/g, "");
+      setData(dataLimpa);
     }
   }
 
-  // QR CODE — SCANNER CORRIGIDO (usa sempre a câmara traseira)
+  // ============================
+  // QR CODE — SCANNER (CÂMARA TRASEIRA)
+  // ============================
   useEffect(() => {
     if (!showQR) return;
 
@@ -246,7 +269,9 @@ export default function Despesas() {
           backCamera.id,
           {
             fps: 10,
-            qrbox: 250,
+            qrbox: 350,
+            aspectRatio: 1.0,
+            disableFlip: true,
           },
           (qrText) => {
             interpretarQR(qrText);
@@ -272,6 +297,9 @@ export default function Despesas() {
     };
   }, [showQR]);
 
+  // ============================
+  // SUBMETER FORMULÁRIO
+  // ============================
   async function handleSubmit(e) {
     e.preventDefault();
 
@@ -320,6 +348,9 @@ export default function Despesas() {
     setTranscript("");
   }
 
+  // ============================
+  // JSX
+  // ============================
   return (
     <div className="text-white flex flex-col gap-10 px-4 md:px-0 w-full">
       <div className="flex justify-between items-center gap-3">
