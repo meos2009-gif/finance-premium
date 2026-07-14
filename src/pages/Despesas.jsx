@@ -200,11 +200,8 @@ export default function Despesas() {
   // ============================
   // QR CODE — INTERPRETAÇÃO AT ROBUSTA
   // ============================
- function interpretarQR(qrText) {
-  // nada de limpezas agressivas, só trim
+function interpretarQR(qrText) {
   qrText = qrText.trim();
-
-  // separar pelos asteriscos (formato real do QR)
   const partes = qrText.split("*").map(p => p.trim());
 
   let dados = {};
@@ -236,8 +233,11 @@ export default function Despesas() {
     setValor(valorLimpo);
   }
 
-  // não mexemos na data por agora
+  // DATA (por agora: hoje)
+  const hoje = new Date().toISOString().split("T")[0];
+  setData(hoje);
 }
+
 
 
 
