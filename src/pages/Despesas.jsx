@@ -201,14 +201,30 @@ export default function Despesas() {
   // QR CODE — INTERPRETAÇÃO AT ROBUSTA
   // ============================
   function interpretarQR(qrText) {
-  qrText = qrText.trim();
-  const partes = qrText.split(";").map(p => p.trim());
+  // limpar caracteres invisíveis
+  qrText = qrText
+    .replace(/\n/g, "")
+    .replace(/\r/g, "")
+    .replace(/\t/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  // separar corretamente
+  const partes = qrText.split(";").map(p => p.trim()).filter(p => p.includes(":"));
+
   let dados = {};
 
   partes.forEach((p) => {
-    const [key, value] = p.split(":").map(x => x.trim());
+    const idx = p.indexOf(":");
+    if (idx === -1) return;
+
+    const key = p.slice(0, idx).trim();
+    const value = p.slice(idx + 1).trim();
+
     if (key && value) dados[key] = value;
   });
+
+  console.log("DADOS AT:", dados); // 👈 VER NO CONSOLE
 
   // NIF (A)
   if (dados["A"]) {
@@ -225,9 +241,11 @@ export default function Despesas() {
       .replace(",", ".")
       .replace(/[^0-9.]/g, "");
     setValor(valorLimpo);
+  } else {
+    console.log("⚠️ Campo O não encontrado no QR");
   }
 
-  // ⭐ NÃO preencher data ainda (vamos testar só o valor)
+  // ⭐ NÃO preencher data ainda
 }
 
 
