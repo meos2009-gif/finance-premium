@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "../supabaseClient";
 import PremiumForm from "../components/PremiumForm";
 import PremiumInput from "../components/PremiumInput";
-import { Html5QrcodeScanner } from "html5-qrcode";
+import { Html5Qrcode } from "html5-qrcode";
 
 export default function Despesas() {
   const [categorias, setCategorias] = useState([]);
@@ -78,7 +78,6 @@ export default function Despesas() {
   function interpretarVoz(texto) {
     texto = texto.toLowerCase();
 
-    // 1) DESCRIÇÃO (primeira palavra)
     let partes = texto.split(" ");
     let primeira = partes[0];
 
@@ -88,7 +87,6 @@ export default function Despesas() {
       setDescricao(primeira);
     }
 
-    // 2) VALOR
     let valorExtraido = null;
 
     const numero = texto.match(/(\d+[.,]?\d*)/);
@@ -115,7 +113,6 @@ export default function Despesas() {
 
     if (valorExtraido) setValor(valorExtraido);
 
-    // 3) DATA
     const meses = {
       janeiro: "01",
       fevereiro: "02",
@@ -143,7 +140,6 @@ export default function Despesas() {
       }
     }
 
-    // 4) CATEGORIA
     let categoriaEncontrada = null;
 
     const idxCategoria = texto.indexOf("categoria ");
@@ -182,7 +178,6 @@ export default function Despesas() {
 
     if (categoriaEncontrada) setCategoria(categoriaEncontrada);
 
-    // 5) EMPRESA
     let empresaEncontrada = null;
 
     const idxEmpresa = texto.indexOf("empresa ");
@@ -197,9 +192,8 @@ export default function Despesas() {
     if (empresaEncontrada) setEmpresa(empresaEncontrada);
   }
 
-  // QR CODE
+  // QR CODE — INTERPRETAÇÃO AT
   function interpretarQR(qrText) {
-    // formato típico AT: A:99999999;B:FT 2024/123;C:2024-05-30;D:50.20;F:61.00;...
     const partes = qrText.split(";");
     let dados = {};
 
@@ -223,33 +217,58 @@ export default function Despesas() {
     }
 
     if (nif) {
-      // como não tens campo NIF na tabela, usamos o nome "NIF <número>"
       setEmpresa(`NIF ${nif}`);
     }
   }
 
+  // QR CODE — SCANNER CORRIGIDO (usa sempre a câmara traseira)
   useEffect(() => {
     if (!showQR) return;
 
-    const scanner = new Html5QrcodeScanner(
-      "qr-reader",
-      { fps: 10, qrbox: 250 },
-      false
-    );
+    async function startScanner() {
+      try {
+        const devices = await Html5Qrcode.getCameras();
 
-    scanner.render(
-      (qrText) => {
-        interpretarQR(qrText);
-        scanner.clear().catch(() => {});
-        setShowQR(false);
-      },
-      (error) => {
-        console.log("Erro QR:", error);
+        if (!devices || devices.length === 0) {
+          alert("Nenhuma câmara encontrada.");
+          return;
+        }
+
+        let backCamera = devices.find((d) =>
+          d.label.toLowerCase().includes("back")
+        );
+
+        if (!backCamera) backCamera = devices[devices.length - 1];
+
+        const html5QrCode = new Html5Qrcode("qr-reader");
+
+        await html5QrCode.start(
+          backCamera.id,
+          {
+            fps: 10,
+            qrbox: 250,
+          },
+          (qrText) => {
+            interpretarQR(qrText);
+            html5QrCode.stop();
+            setShowQR(false);
+          },
+          (error) => {
+            console.log("Erro QR:", error);
+          }
+        );
+      } catch (err) {
+        console.error("Erro ao iniciar scanner:", err);
       }
-    );
+    }
+
+    startScanner();
 
     return () => {
-      scanner.clear().catch(() => {});
+      try {
+        const qr = new Html5Qrcode("qr-reader");
+        qr.stop();
+      } catch {}
     };
   }, [showQR]);
 
@@ -396,48 +415,44 @@ export default function Despesas() {
         </div>
       </PremiumForm>
 
-     {showQR && (
-  <div
-    className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center"
-    onClick={() => setShowQR(false)}
-    style={{
-      backdropFilter: "blur(10px)",     // 👈 blur aplicado ao fundo
-      WebkitBackdropFilter: "blur(10px)"
-    }}
-  >
-    <div
-      className="bg-[#111] border border-[#333] rounded-xl w-full max-w-md mx-4 p-4 flex flex-col gap-4 relative"
-      style={{ pointerEvents: "auto" }}
-      onClick={(e) => e.stopPropagation()}
-    >
-      <div className="flex justify-between items-center">
-        <h2 className="text-lg font-bold text-[#facc15]">
-          Ler QR Code da Fatura
-        </h2>
-        <button
+      {showQR && (
+        <div
+          className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center"
           onClick={() => setShowQR(false)}
-          className="text-sm text-gray-300 hover:text-white"
+          style={{
+            backdropFilter: "blur(10px)",
+            WebkitBackdropFilter: "blur(10px)",
+          }}
         >
-          Fechar ✕
-        </button>
-      </div>
+          <div
+            className="bg-[#111] border border-[#333] rounded-xl w-full max-w-md mx-4 p-4 flex flex-col gap-4 relative"
+            style={{ pointerEvents: "auto" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-center">
+              <h2 className="text-lg font-bold text-[#facc15]">
+                Ler QR Code da Fatura
+              </h2>
+              <button
+                onClick={() => setShowQR(false)}
+                className="text-sm text-gray-300 hover:text-white"
+              >
+                Fechar ✕
+              </button>
+            </div>
 
-      <div
-        id="qr-reader"
-        className="w-full overflow-hidden rounded-lg"
-        style={{
-          pointerEvents: "auto",
-          height: "350px",
-          maxHeight: "80vh"
-        }}
-      />
-    </div>
-  </div>
-)}
-
+            <div
+              id="qr-reader"
+              className="w-full overflow-hidden rounded-lg"
+              style={{
+                pointerEvents: "auto",
+                height: "350px",
+                maxHeight: "80vh",
+              }}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
-
-
-
