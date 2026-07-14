@@ -3,6 +3,7 @@ import { supabase } from "../supabaseClient";
 import PremiumForm from "../components/PremiumForm";
 import PremiumInput from "../components/PremiumInput";
 import { Html5Qrcode } from "html5-qrcode";
+import Tesseract from "tesseract.js";
 
 export default function Despesas() {
   const [categorias, setCategorias] = useState([]);
@@ -25,7 +26,7 @@ export default function Despesas() {
   useEffect(() => {
     async function load() {
       const { data: session } = await supabase.auth.getUser();
-      if (!session.user) return;
+      if (!session?.user) return;
 
       const { data: cat } = await supabase
         .from("categories")
@@ -198,48 +199,77 @@ export default function Despesas() {
   }
 
   // ============================
-  // QR CODE — INTERPRETAÇÃO AT ROBUSTA
+  // OCR PARA DATA REAL
   // ============================
-function interpretarQR(qrText) {
-  qrText = qrText.trim();
-  const partes = qrText.split("*").map(p => p.trim());
+  async function lerDataDaImagem(imagem) {
+    const resultado = await Tesseract.recognize(imagem, "por", {
+      logger: (m) => console.log(m),
+    });
 
-  let dados = {};
+    const texto = resultado.data.text;
 
-  partes.forEach((p) => {
-    const [key, value] = p.split(":");
-    if (!key || !value) return;
+    const regexData =
+      /(\d{4}-\d{2}-\d{2})|(\d{2}[./-]\d{2}[./-]\d{2,4})/;
 
-    const k = key.trim();
-    const v = value.trim();
+    const match = texto.match(regexData);
 
-    dados[k] = v;
-  });
+    if (!match) return null;
 
-  // NIF (A)
-  if (dados["A"]) {
-    const nifLimpo = dados["A"].replace(/[^0-9]/g, "");
-    setEmpresa(`NIF ${nifLimpo}`);
+    let dataStr = match[0];
+
+    dataStr = dataStr.replace(/[.\/]/g, "-");
+
+    const partes = dataStr.split("-");
+
+    if (partes[0].length === 2) {
+      const ano = "20" + partes[2];
+      const mes = partes[1];
+      const dia = partes[0];
+      return `${ano}-${mes}-${dia}`;
+    }
+
+    return dataStr;
   }
 
-  // Descrição fixa
-  setDescricao("Fatura");
+  // ============================
+  // QR CODE — INTERPRETAÇÃO AT (FORMATO COM *)
+  // ============================
+  function interpretarQR(qrText) {
+    qrText = qrText.trim();
+    const partes = qrText.split("*").map((p) => p.trim());
 
-  // VALOR TOTAL (O)
-  if (dados["O"]) {
-    const valorLimpo = dados["O"]
-      .replace(",", ".")
-      .replace(/[^0-9.]/g, "");
-    setValor(valorLimpo);
+    let dados = {};
+
+    partes.forEach((p) => {
+      const [key, value] = p.split(":");
+      if (!key || !value) return;
+
+      const k = key.trim();
+      const v = value.trim();
+
+      dados[k] = v;
+    });
+
+    // NIF (A)
+    if (dados["A"]) {
+      const nifLimpo = dados["A"].replace(/[^0-9]/g, "");
+      setEmpresa(`NIF ${nifLimpo}`);
+    }
+
+    // Descrição fixa
+    setDescricao("Fatura");
+
+    // VALOR TOTAL (O)
+    if (dados["O"]) {
+      const valorLimpo = dados["O"]
+        .replace(",", ".")
+        .replace(/[^0-9.]/g, "");
+      setValor(valorLimpo);
+    }
+
+    // Data fica vazia para ser preenchida via OCR ou manualmente
+    setData("");
   }
-
-  // DATA (por agora: hoje)
-  const hoje = new Date().toISOString().split("T")[0];
-  setData(hoje);
-}
-
-
-
 
   // ============================
   // QR CODE — SCANNER (CÂMARA TRASEIRA)
@@ -303,7 +333,7 @@ function interpretarQR(qrText) {
     e.preventDefault();
 
     const { data: session } = await supabase.auth.getUser();
-    if (!session.user) return;
+    if (!session?.user) return;
 
     let empresaId = null;
 
@@ -407,6 +437,29 @@ function interpretarQR(qrText) {
           onChange={(e) => setData(e.target.value)}
           required
         />
+
+        <div className="flex flex-col gap-1">
+          <label className="text-sm text-gray-300">
+            Ler data real da fatura (OCR)
+          </label>
+          <input
+            type="file"
+            accept="image/*"
+            onChange={async (e) => {
+              const file = e.target.files[0];
+              if (!file) return;
+
+              const dataReal = await lerDataDaImagem(file);
+
+              if (dataReal) {
+                setData(dataReal);
+              } else {
+                alert("Não consegui ler a data da fatura.");
+              }
+            }}
+            className="bg-[#111] border border-[#333] text-white rounded-lg px-4 py-3"
+          />
+        </div>
 
         <div className="flex flex-col gap-1">
           <label className="text-sm text-gray-300">Categoria</label>
