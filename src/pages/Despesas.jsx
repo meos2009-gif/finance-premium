@@ -419,10 +419,15 @@ export default function Despesas() {
       </div>
 
       <div
-        id="qr-reader"
-        className="w-full overflow-hidden rounded-lg"
-        style={{ pointerEvents: "auto" }}
-            />
+  id="qr-reader"
+  className="w-full overflow-hidden rounded-lg"
+  style={{
+    pointerEvents: "auto",
+    height: "350px",
+    maxHeight: "80vh"
+  }}
+/>
+
     </div>
   </div>
 )}
