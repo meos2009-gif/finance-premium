@@ -85,31 +85,45 @@ export default function Despesas() {
     console.log("OCR TEXTO:", texto);
 
     // regex melhorado para datas Lidl
-    const regexData =
-      /(20\d{2}[./-]\d{2}[./-]\d{2})|(\d{2}[./-]\d{2}[./-]\d{2})|(\d{2}[./-]\d{2}[./-]20\d{2})|(\d{4}-\d{2}-\d{2})/;
+    // 1) Procurar datas normais (Lidl, Continente, Pingo Doce)
+const regexData =
+  /(20\d{2}[./-]\d{2}[./-]\d{2})|(\d{2}[./-]\d{2}[./-]\d{2})|(\d{2}[./-]\d{2}[./-]20\d{2})|(\d{4}-\d{2}-\d{2})/;
 
-    const matchData = texto.match(regexData);
-    if (matchData) {
-      let dataStr = matchData[0].replace(/[.\/]/g, "-");
-      const partes = dataStr.split("-");
+const matchData = texto.match(regexData);
 
-      // converter ano 2 dígitos → 20xx
-      if (partes[2].length === 2) {
-        partes[2] = "20" + partes[2];
-      }
+if (matchData) {
+  let dataStr = matchData[0].replace(/[.\/]/g, "-");
+  const partes = dataStr.split("-");
 
-      const ano = partes[2];
-      const mes = partes[1];
-      const dia = partes[0];
+  if (partes[2].length === 2) {
+    partes[2] = "20" + partes[2];
+  }
 
-      setData(`${ano}-${mes}-${dia}`);
-    }
+  const ano = partes[2];
+  const mes = partes[1];
+  const dia = partes[0];
 
-    // número da fatura (ex: 02680826/010216)
-    const matchNum = texto.match(/\d{6,}\/\d{6}/);
-    if (matchNum) {
-      setDescricao(`Fatura ${matchNum[0]}`);
-    }
+  setData(`${ano}-${mes}-${dia}`);
+  return;
+}
+
+// 2) Procurar datas codificadas (bombas de combustível)
+const regexFS = /FS\s*(\d{6})(\d{6})\/(\d{3,6})/;
+const matchFS = texto.match(regexFS);
+
+if (matchFS) {
+  const bloco1 = matchFS[1]; // dia codificado
+  const bloco2 = matchFS[2]; // mês codificado
+  const bloco3 = matchFS[3]; // ano codificado
+
+  // decodificação simples (padrão usado por bombas)
+  const dia = bloco1.slice(0, 2);
+  const mes = bloco2.slice(0, 2);
+  const ano = "20" + bloco3.slice(-2);
+
+  setData(`${ano}-${mes}-${dia}`);
+  return;
+}
 
     // loja (ex: FAFE, E.N 206)
     const matchLoja = texto.match(/FAFE|E\.N 206|Terminal Pagamento Automático/);
