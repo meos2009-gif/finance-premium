@@ -201,46 +201,36 @@ export default function Despesas() {
   // QR CODE — INTERPRETAÇÃO AT ROBUSTA
   // ============================
   function interpretarQR(qrText) {
-    qrText = qrText.trim();
+  qrText = qrText.trim();
+  const partes = qrText.split(";").map(p => p.trim());
+  let dados = {};
 
-    const partes = qrText.split(";").map((p) => p.trim());
-    let dados = {};
+  partes.forEach((p) => {
+    const [key, value] = p.split(":").map(x => x.trim());
+    if (key && value) dados[key] = value;
+  });
 
-    partes.forEach((p) => {
-      const [key, value] = p.split(":").map((x) => x.trim());
-      if (key && value) dados[key] = value;
-    });
-
-    const nif = dados["A"];
-    const numeroFatura = dados["B"];
-    const dataFatura = dados["C"];
-    const totalComIva = dados["F"] || dados["D"];
-
-    // NIF
-    if (nif) {
-      const nifLimpo = nif.replace(/[^0-9]/g, "");
-      setEmpresa(`NIF ${nifLimpo}`);
-    }
-
-    // Descrição
-    if (numeroFatura) {
-      setDescricao(`Fatura ${numeroFatura}`);
-    } else {
-      setDescricao("Fatura");
-    }
-
-    // Valor
-    if (totalComIva) {
-      const valorLimpo = totalComIva.replace(",", ".").replace(/[^0-9.]/g, "");
-      setValor(valorLimpo);
-    }
-
-    // Data
-    if (dataFatura) {
-      const dataLimpa = dataFatura.replace(/[^0-9-]/g, "");
-      setData(dataLimpa);
-    }
+  // NIF
+  if (dados["A"]) {
+    const nifLimpo = dados["A"].replace(/[^0-9]/g, "");
+    setEmpresa(`NIF ${nifLimpo}`);
   }
+
+  // Tipo de documento (FS = Fatura Simplificada)
+  if (dados["D"]) {
+    setDescricao(`Fatura ${dados["D"]}`);
+  }
+
+  // VALOR TOTAL (campo O)
+  if (dados["O"]) {
+    const valorLimpo = dados["O"].replace(",", ".").replace(/[^0-9.]/g, "");
+    setValor(valorLimpo);
+  }
+
+  // DATA — não existe no QR novo → usar data atual
+  const hoje = new Date().toISOString().split("T")[0];
+  setData(hoje);
+}
 
   // ============================
   // QR CODE — SCANNER (CÂMARA TRASEIRA)
