@@ -89,13 +89,13 @@ export default function Despesas() {
         await html5QrCode.stop();
         setShowQR(false);
 
-        setTimeout(() => abrirCameraParaFoto(), 300);
+        setTimeout(() => abrirCameraParaFotoManual(), 300);
       },
       (error) => console.log("Erro QR:", error)
     );
   }
 
-  async function abrirCameraParaFoto() {
+  async function abrirCameraParaFotoManual() {
     setShowCamera(true);
 
     try {
@@ -106,14 +106,12 @@ export default function Despesas() {
       streamRef.current = stream;
       videoRef.current.srcObject = stream;
       videoRef.current.play();
-
-      setTimeout(() => tirarFoto(), 1500);
     } catch (err) {
       alert("Erro ao abrir a câmara.");
     }
   }
 
-  async function tirarFoto() {
+  async function tirarFotoManual() {
     const video = videoRef.current;
     const canvas = document.createElement("canvas");
 
@@ -154,7 +152,7 @@ export default function Despesas() {
       setData(dt);
       alert("Data extraída com sucesso!");
     } else {
-      alert("Não foi possível ler a data.");
+      alert("Não foi possível ler a data. Tente aproximar mais a linha da data.");
     }
   }
 
@@ -217,7 +215,7 @@ export default function Despesas() {
           }}
           className="px-4 py-2 rounded-lg font-bold bg-purple-600"
         >
-          📷 Ler Fatura (QR AT + Data via OCR)
+          📷 Ler Fatura (QR AT + Data)
         </button>
       </div>
 
@@ -302,7 +300,7 @@ export default function Despesas() {
         <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center">
           <div className="bg-[#111] border border-[#333] rounded-xl w-full max-w-md mx-4 p-4 flex flex-col gap-4">
             <h2 className="text-lg font-bold text-[#facc15]">
-              Aponte a câmara para o talão
+              Aponte a câmara para a linha da data
             </h2>
 
             <video
@@ -310,6 +308,13 @@ export default function Despesas() {
               className="w-full rounded-lg"
               style={{ maxHeight: "300px" }}
             />
+
+            <button
+              onClick={tirarFotoManual}
+              className="px-4 py-3 rounded-lg font-bold bg-yellow-500 text-black text-lg"
+            >
+              📸 Tirar Foto da Data
+            </button>
           </div>
         </div>
       )}
