@@ -5,6 +5,83 @@ import PremiumInput from "../components/PremiumInput";
 import { Html5Qrcode } from "html5-qrcode";
 import Tesseract from "tesseract.js";
 
+const empresasInternas = {
+  "500853948": "Continente",
+  "500384620": "Pingo Doce",
+  "504296244": "Lidl",
+  "500697256": "Repsol",
+  "500499059": "Galp",
+  "504032798": "Auchan",
+  "500081568": "Minipreço",
+  "502593640": "Intermarché",
+  "510388456": "Prio",
+  "500745938": "McDonald's",
+  "510839240": "Burger King",
+  "502011378": "Worten",
+  "501844810": "Fnac",
+  "504295371": "Decathlon",
+  "503467044": "Leroy Merlin",
+  "501280353": "IKEA",
+  "502593640": "Bricomarché",
+  "500102640": "BP",
+  "500381993": "Jumbo",
+  "500777360": "MEO",
+  "500051370": "Vodafone",
+  "500077568": "NOS"
+};
+
+function simplificarNomeLegal(nome) {
+  if (!nome) return null;
+
+  const mapaSimplificado = {
+    "Modelo Continente": "Continente",
+    "Jerónimo Martins": "Pingo Doce",
+    "Lidl": "Lidl",
+    "Repsol": "Repsol",
+    "Galp": "Galp",
+    "Auchan": "Auchan",
+    "Minipreço": "Minipreço",
+    "Intermarché": "Intermarché",
+    "Prio": "Prio",
+    "McDonald's": "McDonald's",
+    "Burger King": "Burger King",
+    "Worten": "Worten",
+    "Fnac": "Fnac",
+    "Decathlon": "Decathlon",
+    "Leroy Merlin": "Leroy Merlin",
+    "IKEA": "IKEA",
+    "Bricomarché": "Bricomarché",
+    "BP": "BP",
+    "Jumbo": "Jumbo",
+    "MEO": "MEO",
+    "Vodafone": "Vodafone",
+    "NOS": "NOS"
+  };
+
+  for (const chave in mapaSimplificado) {
+    if (nome.includes(chave)) {
+      return mapaSimplificado[chave];
+    }
+  }
+
+  return nome.split(",")[0];
+}
+
+async function buscarNomeLegalINCM(nif) {
+  try {
+    const resposta = await fetch(`https://transparencia.incm.pt/api/empresas?nif=${nif}`);
+    const dados = await resposta.json();
+
+    if (dados && dados.nome) {
+      return simplificarNomeLegal(dados.nome);
+    }
+
+    return null;
+  } catch (e) {
+    return null;
+  }
+}
+
 export default function Despesas() {
   const [categorias, setCategorias] = useState([]);
   const [empresas, setEmpresas] = useState([]);
@@ -20,7 +97,6 @@ export default function Despesas() {
 
   const videoRef = useRef(null);
   const streamRef = useRef(null);
-
   useEffect(() => {
     async function load() {
       const { data: session } = await supabase.auth.getUser();
@@ -40,7 +116,6 @@ export default function Despesas() {
     }
     load();
   }, []);
-
   function interpretarQR_AT(texto) {
     const partes = texto.split("*").map((p) => p.trim());
     let dados = {};
@@ -51,14 +126,27 @@ export default function Despesas() {
       dados[key.trim()] = value.trim();
     });
 
+    // Valor total
     if (dados["O"]) {
       const v = dados["O"].replace(",", ".").replace(/[^0-9.]/g, "");
       setValor(v);
     }
 
+    // Empresa (NIF → nome interno → INCM → fallback)
     if (dados["A"]) {
       const nif = dados["A"].replace(/[^0-9]/g, "");
-      setEmpresa(`NIF ${nif}`);
+
+      if (empresasInternas[nif]) {
+        setEmpresa(empresasInternas[nif]); // nome simples interno
+      } else {
+        buscarNomeLegalINCM(nif).then((nome) => {
+          if (nome) {
+            setEmpresa(nome); // nome simplificado da INCM
+          } else {
+            setEmpresa(`NIF ${nif}`); // fallback
+          }
+        });
+      }
     }
 
     setDescricao("Fatura");
@@ -155,7 +243,6 @@ export default function Despesas() {
       alert("Não foi possível ler a data. Tente aproximar mais a linha da data.");
     }
   }
-
   async function handleSubmit(e) {
     e.preventDefault();
 
@@ -164,13 +251,16 @@ export default function Despesas() {
 
     let empresaId = null;
 
+    // Se a empresa já existir na base de dados → usar ID existente
     if (empresa.trim() !== "") {
       const existente = empresas.find(
         (x) => x.name.toLowerCase() === empresa.toLowerCase()
       );
+
       if (existente) {
         empresaId = existente.id;
       } else {
+        // Criar nova empresa automaticamente
         const { data: nova } = await supabase
           .from("empresas")
           .insert({
@@ -179,11 +269,13 @@ export default function Despesas() {
           })
           .select()
           .single();
+
         empresaId = nova.id;
         setEmpresas((prev) => [...prev, nova]);
       }
     }
 
+    // Inserir despesa
     await supabase.from("transactions").insert({
       description: descricao,
       amount: valor,
@@ -194,15 +286,16 @@ export default function Despesas() {
       user_id: session.user.id,
     });
 
+    // Reset dos campos
     setDescricao("");
     setValor("");
     setData("");
     setCategoria("");
     setEmpresa("");
   }
-
   return (
     <div className="text-white flex flex-col gap-10 px-4 md:px-0 w-full">
+      
       <div className="flex justify-between items-center gap-3">
         <h1 className="text-2xl font-bold text-[#facc15]">
           Adicionar Despesa
@@ -220,6 +313,7 @@ export default function Despesas() {
       </div>
 
       <PremiumForm title="Nova Despesa" onSubmit={handleSubmit}>
+        
         <PremiumInput
           label="Descrição"
           type="text"
@@ -278,8 +372,10 @@ export default function Despesas() {
             ))}
           </datalist>
         </div>
+
       </PremiumForm>
 
+      {/* MODAL QR AT */}
       {showQR && (
         <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center">
           <div className="bg-[#111] border border-[#333] rounded-xl w-full max-w-md mx-4 p-4 flex flex-col gap-4">
@@ -296,6 +392,7 @@ export default function Despesas() {
         </div>
       )}
 
+      {/* MODAL CÂMARA */}
       {showCamera && (
         <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center">
           <div className="bg-[#111] border border-[#333] rounded-xl w-full max-w-md mx-4 p-4 flex flex-col gap-4">
@@ -318,6 +415,7 @@ export default function Despesas() {
           </div>
         </div>
       )}
+
     </div>
   );
 }
