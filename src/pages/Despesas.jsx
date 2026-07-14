@@ -83,9 +83,10 @@ export default function Despesas() {
 
     const texto = resultado.data.text;
 
-    // data (vários formatos possíveis)
+    // regex melhorado para datas pequenas
     const regexData =
-      /(\d{4}-\d{2}-\d{2})|(\d{2}[./-]\d{2}[./-]\d{2,4})/;
+      /(20\d{2}[./-]\d{2}[./-]\d{2})|(\d{2}[./-]\d{2}[./-]20\d{2})|(\d{4}-\d{2}-\d{2})/;
+
     const matchData = texto.match(regexData);
     if (matchData) {
       let dataStr = matchData[0].replace(/[.\/]/g, "-");
@@ -119,14 +120,15 @@ export default function Despesas() {
     const canvas = canvasRef.current;
     if (!video || !canvas) return;
 
-    const width = video.videoWidth;
-    const height = video.videoHeight;
-    if (!width || !height) return;
+    canvas.width = 1920;
+    canvas.height = 1080;
 
-    canvas.width = width;
-    canvas.height = height;
     const ctx = canvas.getContext("2d");
-    ctx.drawImage(video, 0, 0, width, height);
+
+    // melhorar contraste para OCR
+    ctx.filter = "contrast(140%) brightness(110%)";
+
+    ctx.drawImage(video, 0, 0, 1920, 1080);
 
     const dataUrl = canvas.toDataURL("image/png");
     await ocrDaFotoTalão(dataUrl);
@@ -160,38 +162,36 @@ export default function Despesas() {
             disableFlip: true,
           },
           async (qrText) => {
-            // QR lido → preencher campos
             interpretarQR(qrText);
 
-            // parar QR
             await html5QrCode.stop();
 
-            // agora abrir stream manual para capturar foto do talão
             try {
-              // obter lista de câmaras novamente
-const cameras = await Html5Qrcode.getCameras();
+              const cameras = await Html5Qrcode.getCameras();
+              const backCam = cameras[cameras.length - 1];
 
-// usar SEMPRE a última (traseira)
-const backCam = cameras[cameras.length - 1];
+              const stream = await navigator.mediaDevices.getUserMedia({
+                video: {
+                  deviceId: { exact: backCam.id },
+                  width: { ideal: 1920 },
+                  height: { ideal: 1080 },
+                },
+              });
 
-// abrir stream com a traseira
-const stream = await navigator.mediaDevices.getUserMedia({
-  video: { deviceId: { exact: backCam.id } }
-});
               streamRef.current = stream;
+
               if (videoRef.current) {
                 videoRef.current.srcObject = stream;
+                videoRef.current.setAttribute("playsinline", true);
+                videoRef.current.setAttribute("muted", true);
+                videoRef.current.setAttribute("autoplay", true);
                 await videoRef.current.play();
               }
 
-              // delay de 1 segundo para posicionar talão
               setTimeout(async () => {
                 await capturarFotoETalão();
 
-                // parar stream
-                if (videoRef.current) {
-                  videoRef.current.pause();
-                }
+                if (videoRef.current) videoRef.current.pause();
                 if (streamRef.current) {
                   streamRef.current.getTracks().forEach((t) => t.stop());
                   streamRef.current = null;
@@ -372,7 +372,6 @@ const stream = await navigator.mediaDevices.getUserMedia({
               style={{ height: "260px" }}
             />
 
-            {/* vídeo oculto para captura da foto do talão */}
             <video
               ref={videoRef}
               style={{ display: "none" }}
