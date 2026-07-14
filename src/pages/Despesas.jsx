@@ -286,11 +286,8 @@ export default function Despesas() {
           return;
         }
 
-        let backCamera = devices.find((d) =>
-          d.label.toLowerCase().includes("back")
-        );
-
-        if (!backCamera) backCamera = devices[devices.length - 1];
+        // ⭐ SOLUÇÃO DEFINITIVA: usar sempre a última câmara (traseira)
+const backCamera = devices[devices.length - 1];
 
         const html5QrCode = new Html5Qrcode("qr-reader");
 
