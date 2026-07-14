@@ -210,26 +210,25 @@ export default function Despesas() {
     if (key && value) dados[key] = value;
   });
 
-  // NIF
+  // NIF (A)
   if (dados["A"]) {
     const nifLimpo = dados["A"].replace(/[^0-9]/g, "");
     setEmpresa(`NIF ${nifLimpo}`);
   }
 
-  // Tipo de documento (FS = Fatura Simplificada)
-  if (dados["D"]) {
-    setDescricao(`Fatura ${dados["D"]}`);
-  }
+  // Descrição (FS = Fatura Simplificada)
+  setDescricao("Fatura");
 
-  // VALOR TOTAL (campo O)
+  // ⭐ VALOR TOTAL (O)
   if (dados["O"]) {
-    const valorLimpo = dados["O"].replace(",", ".").replace(/[^0-9.]/g, "");
+    const valorLimpo = dados["O"]
+      .replace(",", ".")
+      .replace(/[^0-9.]/g, "");
     setValor(valorLimpo);
   }
 
-  // DATA — não existe no QR novo → usar data atual
-  const hoje = new Date().toISOString().split("T")[0];
-  setData(hoje);
+  // ⭐ DATA — QR do Lidl NÃO tem data → não preencher aqui
+  // Deixa o campo vazio para o OCR preencher
 }
 
   // ============================
