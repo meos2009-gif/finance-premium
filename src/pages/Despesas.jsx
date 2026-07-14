@@ -200,31 +200,24 @@ export default function Despesas() {
   // ============================
   // QR CODE — INTERPRETAÇÃO AT ROBUSTA
   // ============================
-  function interpretarQR(qrText) {
-  // limpar caracteres invisíveis
-  qrText = qrText
-    .replace(/\n/g, "")
-    .replace(/\r/g, "")
-    .replace(/\t/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
+ function interpretarQR(qrText) {
+  // nada de limpezas agressivas, só trim
+  qrText = qrText.trim();
 
-  // separar corretamente
-  const partes = qrText.split(";").map(p => p.trim()).filter(p => p.includes(":"));
+  // separar pelos asteriscos (formato real do QR)
+  const partes = qrText.split("*").map(p => p.trim());
 
   let dados = {};
 
   partes.forEach((p) => {
-    const idx = p.indexOf(":");
-    if (idx === -1) return;
+    const [key, value] = p.split(":");
+    if (!key || !value) return;
 
-    const key = p.slice(0, idx).trim();
-    const value = p.slice(idx + 1).trim();
+    const k = key.trim();
+    const v = value.trim();
 
-    if (key && value) dados[key] = value;
+    dados[k] = v;
   });
-
-  console.log("DADOS AT:", dados); // 👈 VER NO CONSOLE
 
   // NIF (A)
   if (dados["A"]) {
@@ -235,18 +228,17 @@ export default function Despesas() {
   // Descrição fixa
   setDescricao("Fatura");
 
-  // ⭐ VALOR TOTAL (O)
+  // VALOR TOTAL (O)
   if (dados["O"]) {
     const valorLimpo = dados["O"]
       .replace(",", ".")
       .replace(/[^0-9.]/g, "");
     setValor(valorLimpo);
-  } else {
-    console.log("⚠️ Campo O não encontrado no QR");
   }
 
-  // ⭐ NÃO preencher data ainda
+  // não mexemos na data por agora
 }
+
 
 
   // ============================
