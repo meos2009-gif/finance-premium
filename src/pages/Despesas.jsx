@@ -1,9 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "../supabaseClient";
 import PremiumForm from "../components/PremiumForm";
 import PremiumInput from "../components/PremiumInput";
 import { Html5Qrcode } from "html5-qrcode";
-import Tesseract from "tesseract.js";
 
 export default function Despesas() {
   const [categorias, setCategorias] = useState([]);
@@ -15,11 +14,8 @@ export default function Despesas() {
   const [categoria, setCategoria] = useState("");
   const [empresa, setEmpresa] = useState("");
 
-  const [showQRFlow, setShowQRFlow] = useState(false);
-
-  const videoRef = useRef(null);
-  const canvasRef = useRef(null);
-  const streamRef = useRef(null);
+  const [showQR, setShowQR] = useState(false);
+  const [fase, setFase] = useState("AT"); // AT → DATA
 
   // carregar categorias + empresas
   useEffect(() => {
@@ -42,215 +38,81 @@ export default function Despesas() {
     load();
   }, []);
 
-  // interpretar QR AT
-  function interpretarQR(qrText) {
-    qrText = qrText.trim();
-    const partes = qrText.split("*").map((p) => p.trim());
-
+  // interpretar QR AT (faturas portuguesas)
+  function interpretarQR_AT(texto) {
+    const partes = texto.split("*").map((p) => p.trim());
     let dados = {};
+
     partes.forEach((p) => {
       const [key, value] = p.split(":");
       if (!key || !value) return;
       dados[key.trim()] = value.trim();
     });
 
-    // NIF (A)
-    if (dados["A"]) {
-      const nifLimpo = dados["A"].replace(/[^0-9]/g, "");
-      setEmpresa(`NIF ${nifLimpo}`);
-    }
-
-    // Descrição
-    setDescricao("Fatura");
-
-    // Valor total (O)
+    // valor total
     if (dados["O"]) {
-      const valorLimpo = dados["O"]
-        .replace(",", ".")
-        .replace(/[^0-9.]/g, "");
-      setValor(valorLimpo);
+      const v = dados["O"].replace(",", ".").replace(/[^0-9.]/g, "");
+      setValor(v);
     }
 
-    // data via foto/OCR → deixa vazio por agora
-    setData("");
+    // empresa via NIF
+    if (dados["A"]) {
+      const nif = dados["A"].replace(/[^0-9]/g, "");
+      setEmpresa(`NIF ${nif}`);
+    }
+
+    setDescricao("Fatura");
   }
 
-  // OCR da foto do talão (talão inteiro)
-  async function ocrDaFotoTalão(imageSource) {
-    const resultado = await Tesseract.recognize(imageSource, "por", {
-      logger: (m) => console.log(m),
-    });
+  // interpretar QR interno (data/hora)
+  function interpretarQR_Data(texto) {
+    const regexData = /(\d{4}-\d{2}-\d{2})/;
+    const d = texto.match(regexData);
 
-    const texto = resultado.data.text;
-    console.log("OCR TEXTO:", texto);
+    if (d) setData(d[0]);
+  }
 
-    // 1) Datas normais (Lidl, Continente, Pingo Doce)
-    const regexData =
-      /(20\d{2}[./-]\d{2}[./-]\d{2})|(\d{2}[./-]\d{2}[./-]\d{2})|(\d{2}[./-]\d{2}[./-]20\d{2})|(\d{4}-\d{2}-\d{2})/;
+  // iniciar leitor QR
+  async function iniciarLeitorSequencial() {
+    const html5QrCode = new Html5Qrcode("qr-reader");
 
-    const matchData = texto.match(regexData);
-
-    if (matchData) {
-      let dataStr = matchData[0].replace(/[.\/]/g, "-");
-      const partes = dataStr.split("-");
-
-      if (partes[2].length === 2) {
-        partes[2] = "20" + partes[2];
-      }
-
-      const ano = partes[2];
-      const mes = partes[1];
-      const dia = partes[0];
-
-      setData(`${ano}-${mes}-${dia}`);
+    const devices = await Html5Qrcode.getCameras();
+    if (!devices || devices.length === 0) {
+      alert("Nenhuma câmara encontrada.");
       return;
     }
 
-    // 2) Datas codificadas (bombas de combustível)
-    const regexFS = /FS\s*(\d{6})(\d{6})\/(\d{3,6})/;
-    const matchFS = texto.match(regexFS);
+    const backCamera = devices[devices.length - 1];
 
-    if (matchFS) {
-      const bloco1 = matchFS[1]; // dia codificado
-      const bloco2 = matchFS[2]; // mês codificado
-      const bloco3 = matchFS[3]; // ano codificado
-
-      const dia = bloco1.slice(0, 2);
-      const mes = bloco2.slice(0, 2);
-      const ano = "20" + bloco3.slice(-2);
-
-      setData(`${ano}-${mes}-${dia}`);
-      return;
-    }
-  }
-
-  // capturar frame do vídeo e enviar para OCR
-  async function capturarFotoETalão() {
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    if (!video || !canvas) return;
-
-    // esperar vídeo carregar
-    await new Promise((resolve) => {
-      if (video.readyState >= 2) resolve();
-      video.onloadeddata = () => resolve();
-    });
-
-    const w = video.videoWidth || 1920;
-    const h = video.videoHeight || 1080;
-
-    canvas.width = w;
-    canvas.height = h;
-
-    const ctx = canvas.getContext("2d");
-
-    ctx.filter = "contrast(140%) brightness(110%)";
-
-    ctx.drawImage(video, 0, 0, w, h);
-
-    const dataUrl = canvas.toDataURL("image/png");
-
-    await ocrDaFotoTalão(dataUrl);
-  }
-
-  // fluxo único: abrir câmara, ler QR, esperar 1s, tirar foto, OCR
-  useEffect(() => {
-    if (!showQRFlow) return;
-
-    let html5QrCode;
-
-    async function startFlow() {
-      try {
-        const devices = await Html5Qrcode.getCameras();
-        if (!devices || devices.length === 0) {
-          alert("Nenhuma câmara encontrada.");
-          setShowQRFlow(false);
+    html5QrCode.start(
+      backCamera.id,
+      {
+        fps: 10,
+        qrbox: 300,
+        aspectRatio: 1.0,
+        disableFlip: true,
+      },
+      async (qrText) => {
+        if (fase === "AT") {
+          interpretarQR_AT(qrText);
+          setFase("DATA");
+          alert("QR AT lido! Agora aponte para o QR da data.");
           return;
         }
 
-        const backCamera = devices[devices.length - 1];
+        if (fase === "DATA") {
+          interpretarQR_Data(qrText);
 
-        html5QrCode = new Html5Qrcode("qr-reader");
+          await html5QrCode.stop();
+          setShowQR(false);
+          setFase("AT"); // reset
 
-        await html5QrCode.start(
-          backCamera.id,
-          {
-            fps: 10,
-            qrbox: 300,
-            aspectRatio: 1.0,
-            disableFlip: true,
-          },
-          async (qrText) => {
-            interpretarQR(qrText);
-
-            await html5QrCode.stop();
-
-            try {
-              const cameras = await Html5Qrcode.getCameras();
-              const backCam = cameras[cameras.length - 1];
-
-              const stream = await navigator.mediaDevices.getUserMedia({
-                video: {
-                  deviceId: { exact: backCam.id },
-                  width: { ideal: 1920 },
-                  height: { ideal: 1080 },
-                },
-              });
-
-              streamRef.current = stream;
-
-              if (videoRef.current) {
-                videoRef.current.srcObject = stream;
-                videoRef.current.setAttribute("playsinline", true);
-                videoRef.current.setAttribute("muted", true);
-                videoRef.current.setAttribute("autoplay", true);
-
-                await videoRef.current.play();
-
-                await new Promise((resolve) => {
-                  if (videoRef.current.readyState >= 2) resolve();
-                  videoRef.current.onloadeddata = () => resolve();
-                });
-              }
-
-              setTimeout(async () => {
-                await capturarFotoETalão();
-
-                if (videoRef.current) videoRef.current.pause();
-                if (streamRef.current) {
-                  streamRef.current.getTracks().forEach((t) => t.stop());
-                  streamRef.current = null;
-                }
-
-                setShowQRFlow(false);
-              }, 2500);
-            } catch (err) {
-              console.error("Erro ao capturar foto do talão:", err);
-              setShowQRFlow(false);
-            }
-          },
-          (error) => {
-            console.log("Erro QR:", error);
-          }
-        );
-      } catch (err) {
-        console.error("Erro ao iniciar fluxo QR+foto:", err);
-        setShowQRFlow(false);
-      }
-    }
-
-    startFlow();
-
-    return () => {
-      try {
-        if (html5QrCode) html5QrCode.stop();
-      } catch {}
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach((t) => t.stop());
-        streamRef.current = null;
-      }
-    };
-  }, [showQRFlow]);
+          alert("Fatura lida com sucesso!");
+        }
+      },
+      (error) => console.log("Erro QR:", error)
+    );
+  }
 
   // submit
   async function handleSubmit(e) {
@@ -306,10 +168,13 @@ export default function Despesas() {
         </h1>
 
         <button
-          onClick={() => setShowQRFlow(true)}
+          onClick={() => {
+            setShowQR(true);
+            iniciarLeitorSequencial();
+          }}
           className="px-4 py-2 rounded-lg font-bold bg-purple-600"
         >
-          📷 Lançar Fatura (QR + Foto)
+          📷 Ler Fatura (AT + Data)
         </button>
       </div>
 
@@ -374,7 +239,7 @@ export default function Despesas() {
         </div>
       </PremiumForm>
 
-      {showQRFlow && (
+      {showQR && (
         <div
           className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center"
           style={{
@@ -385,26 +250,17 @@ export default function Despesas() {
           <div
             className="bg-[#111] border border-[#333] rounded-xl w-full max-w-md mx-4 p-4 flex flex-col gap-4 relative"
           >
-            <div className="flex justify-between items-center">
-              <h2 className="text-lg font-bold text-[#facc15]">
-                Ler QR e capturar talão
-              </h2>
-            </div>
+            <h2 className="text-lg font-bold text-[#facc15]">
+              {fase === "AT"
+                ? "Aponte para o QR AT (fatura)"
+                : "Aponte para o QR da data"}
+            </h2>
 
             <div
               id="qr-reader"
               className="w-full overflow-hidden rounded-lg mb-4"
               style={{ height: "260px" }}
             />
-
-            <video
-              ref={videoRef}
-              style={{ display: "none" }}
-              playsInline
-              muted
-            />
-
-            <canvas ref={canvasRef} style={{ display: "none" }} />
           </div>
         </div>
       )}
