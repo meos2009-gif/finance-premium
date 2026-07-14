@@ -422,7 +422,14 @@ export default function Despesas() {
         id="qr-reader"
         className="w-full overflow-hidden rounded-lg"
         style={{ pointerEvents: "auto" }}
-      />
+            />
     </div>
   </div>
 )}
+
+    </div>
+  );
+}
+
+
+
