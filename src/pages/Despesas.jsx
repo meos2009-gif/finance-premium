@@ -5,9 +5,7 @@ import PremiumInput from "../components/PremiumInput";
 import { Html5Qrcode } from "html5-qrcode";
 import Tesseract from "tesseract.js";
 
-// -----------------------------
-// INCM + simplificação de nome
-// -----------------------------
+// INCM + simplificação
 function simplificarNomeLegal(nome) {
   if (!nome) return null;
 
@@ -60,9 +58,7 @@ async function buscarNomeLegalINCM(nif) {
   }
 }
 
-// -----------------------------
 // OCR helpers
-// -----------------------------
 function extrairData(texto) {
   const regexData =
     /(\d{4}[\/\-\.]\d{2}[\/\-\.]\d{2})|(\d{2}[\/\-\.]\d{2}[\/\-\.]\d{4})/;
@@ -119,10 +115,8 @@ function extrairNomeLoja(texto) {
   return null;
 }
 
-// -----------------------------
 // QR AT parser
-// -----------------------------
-function interpretarQR_AT(texto, setValor, setEmpresa) {
+function interpretarQR_AT(texto, setValor, setEmpresa, setData) {
   const partes = texto.split("*").map((p) => p.trim());
   let dados = {};
 
@@ -136,6 +130,12 @@ function interpretarQR_AT(texto, setValor, setEmpresa) {
   if (dados["O"]) {
     const v = dados["O"].replace(",", ".").replace(/[^0-9.]/g, "");
     setValor(v);
+  }
+
+  // Data (D)
+  if (dados["D"]) {
+    const d = dados["D"].replace(/\./g, "-").replace(/\//g, "-");
+    setData(d);
   }
 
   // NIF (A) → INCM
@@ -162,14 +162,13 @@ export default function Despesas() {
   const [categoria, setCategoria] = useState("");
   const [empresa, setEmpresa] = useState("");
 
+  const [showQR, setShowQR] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
 
   const videoRef = useRef(null);
   const streamRef = useRef(null);
 
-  // -----------------------------
-  // Carregar categorias e empresas
-  // -----------------------------
+  // carregar categorias e empresas
   useEffect(() => {
     async function load() {
       const { data: session } = await supabase.auth.getUser();
@@ -190,43 +189,41 @@ export default function Despesas() {
     load();
   }, []);
 
-  // -----------------------------
-  // Ler fatura completa (OCR + QR AT)
-  // -----------------------------
-  async function lerFaturaCompleta(imageData) {
-    // 1) OCR para texto
-    const result = await Tesseract.recognize(imageData, "por");
-    const texto = result.data.text;
+  // QR AT em tempo real
+  async function iniciarLeitorQR() {
+    const html5QrCode = new Html5Qrcode("qr-reader");
 
-    // Data via OCR
-    const dataExtraida = extrairData(texto);
-    if (dataExtraida) setData(dataExtraida);
-
-    // Nome da loja via OCR
-    const lojaExtraida = extrairNomeLoja(texto);
-    if (lojaExtraida) setEmpresa(lojaExtraida);
-
-    // Descrição automática
-    setDescricao("Fatura");
-
-    // 2) QR AT via html5-qrcode (a partir da imagem)
-    const html5QrCode = new Html5Qrcode(/* id virtual */ "qr-reader-temp");
-
-    try {
-      const qrResult = await html5QrCode.scanFile(imageData, true);
-      // qrResult.text contém o QR AT
-      interpretarQR_AT(qrResult, setValor, setEmpresa);
-    } catch (e) {
-      console.log("Não foi possível ler QR AT da imagem:", e);
-      // Se falhar, pelo menos tens OCR de data + loja
-    } finally {
-      html5QrCode.clear();
+    const devices = await Html5Qrcode.getCameras();
+    if (!devices || devices.length === 0) {
+      alert("Nenhuma câmara encontrada.");
+      return;
     }
+
+    const backCamera = devices[devices.length - 1];
+
+    html5QrCode.start(
+      backCamera.id,
+      {
+        fps: 10,
+        qrbox: 300,
+        aspectRatio: 1.0,
+        disableFlip: true,
+      },
+      async (qrText) => {
+        interpretarQR_AT(qrText, setValor, setEmpresa, setData);
+
+        await html5QrCode.stop();
+        setShowQR(false);
+
+        setDescricao("Fatura");
+
+        setTimeout(() => abrirCameraParaFoto(), 300);
+      },
+      (error) => console.log("Erro QR:", error)
+    );
   }
 
-  // -----------------------------
-  // Câmara + foto
-  // -----------------------------
+  // Câmara para foto da fatura (OCR)
   async function abrirCameraParaFoto() {
     setShowCamera(true);
 
@@ -258,12 +255,16 @@ export default function Despesas() {
     streamRef.current.getTracks().forEach((t) => t.stop());
     setShowCamera(false);
 
-    lerFaturaCompleta(imageData);
+    const result = await Tesseract.recognize(imageData, "por");
+    const texto = result.data.text;
+
+    const dataExtraida = extrairData(texto);
+    if (dataExtraida && !data) setData(dataExtraida);
+
+    const lojaExtraida = extrairNomeLoja(texto);
+    if (lojaExtraida && !empresa) setEmpresa(lojaExtraida);
   }
 
-  // -----------------------------
-  // Submeter despesa
-  // -----------------------------
   async function handleSubmit(e) {
     e.preventDefault();
 
@@ -311,9 +312,6 @@ export default function Despesas() {
     setEmpresa("");
   }
 
-  // -----------------------------
-  // UI
-  // -----------------------------
   return (
     <div className="text-white flex flex-col gap-10 px-4 md:px-0 w-full">
       
@@ -323,10 +321,13 @@ export default function Despesas() {
         </h1>
 
         <button
-          onClick={() => abrirCameraParaFoto()}
+          onClick={() => {
+            setShowQR(true);
+            setTimeout(() => iniciarLeitorQR(), 300);
+          }}
           className="px-4 py-2 rounded-lg font-bold bg-purple-600"
         >
-          📸 Ler Fatura Completa (OCR + QR AT)
+          📷 Ler QR AT + Foto Fatura
         </button>
       </div>
 
@@ -393,6 +394,22 @@ export default function Despesas() {
 
       </PremiumForm>
 
+      {showQR && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center">
+          <div className="bg-[#111] border border-[#333] rounded-xl w-full max-w-md mx-4 p-4 flex flex-col gap-4">
+            <h2 className="text-lg font-bold text-[#facc15]">
+              Aponte para o QR AT da fatura
+            </h2>
+
+            <div
+              id="qr-reader"
+              className="w-full overflow-hidden rounded-lg mb-4"
+              style={{ height: "260px" }}
+            />
+          </div>
+        </div>
+      )}
+
       {showCamera && (
         <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center">
           <div className="bg-[#111] border border-[#333] rounded-xl w-full max-w-md mx-4 p-4 flex flex-col gap-4">
@@ -408,7 +425,7 @@ export default function Despesas() {
 
             <button
               onClick={tirarFotoFaturaCompleta}
-              className="px-4 py-3 rounded-lg font-bold bg-yellow-500 text-black text-lg"
+              className="px-4 py-3 rounded-lg font-bold bg-yellow-500 text.black text-lg"
             >
               📸 Tirar Foto da Fatura
             </button>
