@@ -223,7 +223,7 @@ export default function Despesas() {
                 }
 
                 setShowQRFlow(false);
-              }, 1000);
+              }, 2500);
             } catch (err) {
               console.error("Erro ao capturar foto do talão:", err);
               setShowQRFlow(false);
