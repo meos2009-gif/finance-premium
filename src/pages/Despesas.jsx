@@ -84,51 +84,43 @@ export default function Despesas() {
     const texto = resultado.data.text;
     console.log("OCR TEXTO:", texto);
 
-    // regex melhorado para datas Lidl
-    // 1) Procurar datas normais (Lidl, Continente, Pingo Doce)
-const regexData =
-  /(20\d{2}[./-]\d{2}[./-]\d{2})|(\d{2}[./-]\d{2}[./-]\d{2})|(\d{2}[./-]\d{2}[./-]20\d{2})|(\d{4}-\d{2}-\d{2})/;
+    // 1) Datas normais (Lidl, Continente, Pingo Doce)
+    const regexData =
+      /(20\d{2}[./-]\d{2}[./-]\d{2})|(\d{2}[./-]\d{2}[./-]\d{2})|(\d{2}[./-]\d{2}[./-]20\d{2})|(\d{4}-\d{2}-\d{2})/;
 
-const matchData = texto.match(regexData);
+    const matchData = texto.match(regexData);
 
-if (matchData) {
-  let dataStr = matchData[0].replace(/[.\/]/g, "-");
-  const partes = dataStr.split("-");
+    if (matchData) {
+      let dataStr = matchData[0].replace(/[.\/]/g, "-");
+      const partes = dataStr.split("-");
 
-  if (partes[2].length === 2) {
-    partes[2] = "20" + partes[2];
-  }
+      if (partes[2].length === 2) {
+        partes[2] = "20" + partes[2];
+      }
 
-  const ano = partes[2];
-  const mes = partes[1];
-  const dia = partes[0];
+      const ano = partes[2];
+      const mes = partes[1];
+      const dia = partes[0];
 
-  setData(`${ano}-${mes}-${dia}`);
-  return;
-}
+      setData(`${ano}-${mes}-${dia}`);
+      return;
+    }
 
-// 2) Procurar datas codificadas (bombas de combustível)
-const regexFS = /FS\s*(\d{6})(\d{6})\/(\d{3,6})/;
-const matchFS = texto.match(regexFS);
+    // 2) Datas codificadas (bombas de combustível)
+    const regexFS = /FS\s*(\d{6})(\d{6})\/(\d{3,6})/;
+    const matchFS = texto.match(regexFS);
 
-if (matchFS) {
-  const bloco1 = matchFS[1]; // dia codificado
-  const bloco2 = matchFS[2]; // mês codificado
-  const bloco3 = matchFS[3]; // ano codificado
+    if (matchFS) {
+      const bloco1 = matchFS[1]; // dia codificado
+      const bloco2 = matchFS[2]; // mês codificado
+      const bloco3 = matchFS[3]; // ano codificado
 
-  // decodificação simples (padrão usado por bombas)
-  const dia = bloco1.slice(0, 2);
-  const mes = bloco2.slice(0, 2);
-  const ano = "20" + bloco3.slice(-2);
+      const dia = bloco1.slice(0, 2);
+      const mes = bloco2.slice(0, 2);
+      const ano = "20" + bloco3.slice(-2);
 
-  setData(`${ano}-${mes}-${dia}`);
-  return;
-}
-
-    // loja (ex: FAFE, E.N 206)
-    const matchLoja = texto.match(/FAFE|E\.N 206|Terminal Pagamento Automático/);
-    if (matchLoja && !empresa.startsWith("NIF")) {
-      setEmpresa(matchLoja[0]);
+      setData(`${ano}-${mes}-${dia}`);
+      return;
     }
   }
 
@@ -138,27 +130,25 @@ if (matchFS) {
     const canvas = canvasRef.current;
     if (!video || !canvas) return;
 
-    canvas.width = 1920;
-    canvas.height = 1080;
+    // esperar vídeo carregar
+    await new Promise((resolve) => {
+      if (video.readyState >= 2) resolve();
+      video.onloadeddata = () => resolve();
+    });
+
+    const w = video.videoWidth || 1920;
+    const h = video.videoHeight || 1080;
+
+    canvas.width = w;
+    canvas.height = h;
 
     const ctx = canvas.getContext("2d");
 
-    // melhorar contraste para OCR
     ctx.filter = "contrast(140%) brightness(110%)";
 
-    ctx.drawImage(video, 0, 0, 1920, 1080);
+    ctx.drawImage(video, 0, 0, w, h);
 
     const dataUrl = canvas.toDataURL("image/png");
-
-    // mostrar imagem capturada no ecrã (debug)
-    const img = document.createElement("img");
-    img.src = dataUrl;
-    img.style.width = "90%";
-    img.style.border = "3px solid #facc15";
-    img.style.margin = "20px auto";
-    img.style.display = "block";
-    img.style.borderRadius = "10px";
-    document.body.appendChild(img);
 
     await ocrDaFotoTalão(dataUrl);
   }
@@ -214,7 +204,13 @@ if (matchFS) {
                 videoRef.current.setAttribute("playsinline", true);
                 videoRef.current.setAttribute("muted", true);
                 videoRef.current.setAttribute("autoplay", true);
+
                 await videoRef.current.play();
+
+                await new Promise((resolve) => {
+                  if (videoRef.current.readyState >= 2) resolve();
+                  videoRef.current.onloadeddata = () => resolve();
+                });
               }
 
               setTimeout(async () => {
