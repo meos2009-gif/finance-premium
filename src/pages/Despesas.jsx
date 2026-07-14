@@ -168,9 +168,16 @@ export default function Despesas() {
 
             // agora abrir stream manual para capturar foto do talão
             try {
-              const stream = await navigator.mediaDevices.getUserMedia({
-                video: { facingMode: "environment" },
-              });
+              // obter lista de câmaras novamente
+const cameras = await Html5Qrcode.getCameras();
+
+// usar SEMPRE a última (traseira)
+const backCam = cameras[cameras.length - 1];
+
+// abrir stream com a traseira
+const stream = await navigator.mediaDevices.getUserMedia({
+  video: { deviceId: { exact: backCam.id } }
+});
               streamRef.current = stream;
               if (videoRef.current) {
                 videoRef.current.srcObject = stream;
