@@ -13,6 +13,7 @@
     "apexcharts": "^5.10.6",
     "chart.js": "^4.5.1",
     "html2canvas": "^1.4.1",
+    "html5-qrcode": "^2.3.8",
     "jspdf": "^4.2.1",
     "pdfjs-dist": "^5.7.284",
     "react": "^19.0.0",

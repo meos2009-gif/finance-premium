@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "../supabaseClient";
 import PremiumForm from "../components/PremiumForm";
 import PremiumInput from "../components/PremiumInput";
+import { Html5QrcodeScanner } from "html5-qrcode";
 
 export default function Despesas() {
   const [categorias, setCategorias] = useState([]);
@@ -15,6 +16,8 @@ export default function Despesas() {
 
   const [listening, setListening] = useState(false);
   const [transcript, setTranscript] = useState("");
+
+  const [showQR, setShowQR] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -71,13 +74,11 @@ export default function Despesas() {
     recognition.start();
   }
 
-  // ⭐ INTERPRETADOR FINAL COM DESCRIÇÃO CORRIGIDA
+  // VOZ
   function interpretarVoz(texto) {
     texto = texto.toLowerCase();
 
-    // -------------------------
     // 1) DESCRIÇÃO (primeira palavra)
-    // -------------------------
     let partes = texto.split(" ");
     let primeira = partes[0];
 
@@ -87,26 +88,24 @@ export default function Despesas() {
       setDescricao(primeira);
     }
 
-    // -------------------------
     // 2) VALOR
-    // -------------------------
     let valorExtraido = null;
 
     const numero = texto.match(/(\d+[.,]?\d*)/);
     if (numero) valorExtraido = numero[0].replace(",", ".");
 
     if (texto.includes("cent")) {
-      const partes = texto.split(" ");
+      const partesValor = texto.split(" ");
       let euros = 0;
       let centimos = 0;
 
-      partes.forEach((p, i) => {
+      partesValor.forEach((p, i) => {
         if (p === "euros" || p === "euro") {
-          const n = parseFloat(partes[i - 1].replace(",", "."));
+          const n = parseFloat(partesValor[i - 1].replace(",", "."));
           if (!isNaN(n)) euros = n;
         }
         if (p.startsWith("cent")) {
-          const n = parseFloat(partes[i - 1].replace(",", "."));
+          const n = parseFloat(partesValor[i - 1].replace(",", "."));
           if (!isNaN(n)) centimos = n;
         }
       });
@@ -116,13 +115,20 @@ export default function Despesas() {
 
     if (valorExtraido) setValor(valorExtraido);
 
-    // -------------------------
     // 3) DATA
-    // -------------------------
     const meses = {
-      janeiro: "01", fevereiro: "02", março: "03", abril: "04", maio: "05",
-      junho: "06", julho: "07", agosto: "08", setembro: "09",
-      outubro: "10", novembro: "11", dezembro: "12"
+      janeiro: "01",
+      fevereiro: "02",
+      março: "03",
+      abril: "04",
+      maio: "05",
+      junho: "06",
+      julho: "07",
+      agosto: "08",
+      setembro: "09",
+      outubro: "10",
+      novembro: "11",
+      dezembro: "12",
     };
 
     const regexData = /(\d{1,2}) (de )?([a-zç]+)/;
@@ -137,9 +143,7 @@ export default function Despesas() {
       }
     }
 
-    // -------------------------
-    // 4) CATEGORIA (corrigida)
-    // -------------------------
+    // 4) CATEGORIA
     let categoriaEncontrada = null;
 
     const idxCategoria = texto.indexOf("categoria ");
@@ -147,8 +151,12 @@ export default function Despesas() {
       const depois = texto.slice(idxCategoria + 10).trim();
       categorias.forEach((c) => {
         const nome = c.name.toLowerCase();
-        const nomeSemAcento = nome.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-        const depoisSemAcento = depois.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        const nomeSemAcento = nome
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "");
+        const depoisSemAcento = depois
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "");
 
         if (depoisSemAcento.startsWith(nomeSemAcento)) {
           categoriaEncontrada = c.id;
@@ -159,8 +167,12 @@ export default function Despesas() {
     if (!categoriaEncontrada) {
       categorias.forEach((c) => {
         const nome = c.name.toLowerCase();
-        const nomeSemAcento = nome.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-        const textoSemAcento = texto.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        const nomeSemAcento = nome
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "");
+        const textoSemAcento = texto
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "");
 
         if (textoSemAcento.includes(nomeSemAcento)) {
           categoriaEncontrada = c.id;
@@ -170,9 +182,7 @@ export default function Despesas() {
 
     if (categoriaEncontrada) setCategoria(categoriaEncontrada);
 
-    // -------------------------
     // 5) EMPRESA
-    // -------------------------
     let empresaEncontrada = null;
 
     const idxEmpresa = texto.indexOf("empresa ");
@@ -186,6 +196,62 @@ export default function Despesas() {
 
     if (empresaEncontrada) setEmpresa(empresaEncontrada);
   }
+
+  // QR CODE
+  function interpretarQR(qrText) {
+    // formato típico AT: A:99999999;B:FT 2024/123;C:2024-05-30;D:50.20;F:61.00;...
+    const partes = qrText.split(";");
+    let dados = {};
+
+    partes.forEach((p) => {
+      const [key, value] = p.split(":");
+      if (key && value) dados[key] = value;
+    });
+
+    const nif = dados["A"];
+    const numeroFatura = dados["B"];
+    const dataFatura = dados["C"];
+    const totalComIva = dados["F"] || dados["D"];
+
+    if (totalComIva) setValor(totalComIva);
+    if (dataFatura) setData(dataFatura);
+
+    if (numeroFatura) {
+      setDescricao(`Fatura ${numeroFatura}`);
+    } else {
+      setDescricao("Fatura");
+    }
+
+    if (nif) {
+      // como não tens campo NIF na tabela, usamos o nome "NIF <número>"
+      setEmpresa(`NIF ${nif}`);
+    }
+  }
+
+  useEffect(() => {
+    if (!showQR) return;
+
+    const scanner = new Html5QrcodeScanner(
+      "qr-reader",
+      { fps: 10, qrbox: 250 },
+      false
+    );
+
+    scanner.render(
+      (qrText) => {
+        interpretarQR(qrText);
+        scanner.clear().catch(() => {});
+        setShowQR(false);
+      },
+      (error) => {
+        console.log("Erro QR:", error);
+      }
+    );
+
+    return () => {
+      scanner.clear().catch(() => {});
+    };
+  }, [showQR]);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -237,19 +303,28 @@ export default function Despesas() {
 
   return (
     <div className="text-white flex flex-col gap-10 px-4 md:px-0 w-full">
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-center gap-3">
         <h1 className="text-2xl font-bold text-[#facc15]">
           Adicionar Despesa
         </h1>
 
-        <button
-          onClick={iniciarVoz}
-          className={`px-4 py-2 rounded-lg font-bold ${
-            listening ? "bg-red-500" : "bg-green-500"
-          }`}
-        >
-          {listening ? "🎙️ A ouvir..." : "🎤 Inserir por Voz"}
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={iniciarVoz}
+            className={`px-4 py-2 rounded-lg font-bold ${
+              listening ? "bg-red-500" : "bg-green-500"
+            }`}
+          >
+            {listening ? "🎙️ A ouvir..." : "🎤 Inserir por Voz"}
+          </button>
+
+          <button
+            onClick={() => setShowQR(true)}
+            className="px-4 py-2 rounded-lg font-bold bg-purple-600"
+          >
+            📷 Lançar por QR Code
+          </button>
+        </div>
       </div>
 
       {transcript && (
@@ -294,7 +369,9 @@ export default function Despesas() {
           >
             <option value="">Selecione</option>
             {categorias.map((c) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
             ))}
           </select>
         </div>
@@ -318,6 +395,31 @@ export default function Despesas() {
           </datalist>
         </div>
       </PremiumForm>
+
+      {showQR && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md"
+          onClick={() => setShowQR(false)}
+        >
+          <div
+            className="bg-[#111] border border-[#333] rounded-xl w-full max-w-md mx-4 p-4 flex flex-col gap-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-center">
+              <h2 className="text-lg font-bold text-[#facc15]">
+                Ler QR Code da Fatura
+              </h2>
+              <button
+                onClick={() => setShowQR(false)}
+                className="text-sm text-gray-300 hover:text-white"
+              >
+                Fechar ✕
+              </button>
+            </div>
+            <div id="qr-reader" className="w-full" />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
