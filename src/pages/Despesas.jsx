@@ -131,7 +131,16 @@ export default function Despesas() {
     ctx.drawImage(video, 0, 0, 1920, 1080);
 
     const dataUrl = canvas.toDataURL("image/png");
-    await ocrDaFotoTalão(dataUrl);
+   // MOSTRAR A IMAGEM CAPTURADA NO ECRÃ
+const img = document.createElement("img");
+img.src = dataUrl;
+img.style.width = "90%";
+img.style.border = "3px solid #facc15";
+img.style.margin = "20px auto";
+img.style.display = "block";
+img.style.borderRadius = "10px";
+document.body.appendChild(img);
+await ocrDaFotoTalão(dataUrl);
   }
 
   // fluxo único: abrir câmara, ler QR, esperar 1s, tirar foto, OCR
