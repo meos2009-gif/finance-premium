@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { supabase } from "../supabaseClient";
 import PremiumForm from "../components/PremiumForm";
 import PremiumInput from "../components/PremiumInput";
 import { Html5Qrcode } from "html5-qrcode";
+import Tesseract from "tesseract.js";
 
 export default function Despesas() {
   const [categorias, setCategorias] = useState([]);
@@ -15,7 +16,10 @@ export default function Despesas() {
   const [empresa, setEmpresa] = useState("");
 
   const [showQR, setShowQR] = useState(false);
-  const [fase, setFase] = useState("AT"); // AT → DATA
+  const [showCamera, setShowCamera] = useState(false);
+
+  const videoRef = useRef(null);
+  const streamRef = useRef(null);
 
   useEffect(() => {
     async function load() {
@@ -60,14 +64,7 @@ export default function Despesas() {
     setDescricao("Fatura");
   }
 
-  function interpretarQR_Data(texto) {
-    const regexData = /(\d{4}-\d{2}-\d{2})/;
-    const d = texto.match(regexData);
-
-    if (d) setData(d[0]);
-  }
-
-  async function iniciarLeitorSequencial() {
+  async function iniciarLeitorQR() {
     const html5QrCode = new Html5Qrcode("qr-reader");
 
     const devices = await Html5Qrcode.getCameras();
@@ -87,25 +84,78 @@ export default function Despesas() {
         disableFlip: true,
       },
       async (qrText) => {
-        if (fase === "AT") {
-          interpretarQR_AT(qrText);
-          setFase("DATA");
-          alert("QR AT lido! Agora aponte para o QR da data.");
-          return;
-        }
+        interpretarQR_AT(qrText);
 
-        if (fase === "DATA") {
-          interpretarQR_Data(qrText);
+        await html5QrCode.stop();
+        setShowQR(false);
 
-          await html5QrCode.stop();
-          setShowQR(false);
-          setFase("AT");
-
-          alert("Fatura lida com sucesso!");
-        }
+        setTimeout(() => abrirCameraParaFoto(), 300);
       },
       (error) => console.log("Erro QR:", error)
     );
+  }
+
+  async function abrirCameraParaFoto() {
+    setShowCamera(true);
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "environment" },
+      });
+
+      streamRef.current = stream;
+      videoRef.current.srcObject = stream;
+      videoRef.current.play();
+
+      setTimeout(() => tirarFoto(), 1500);
+    } catch (err) {
+      alert("Erro ao abrir a câmara.");
+    }
+  }
+
+  async function tirarFoto() {
+    const video = videoRef.current;
+    const canvas = document.createElement("canvas");
+
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(video, 0, 0);
+
+    const imageData = canvas.toDataURL("image/png");
+
+    streamRef.current.getTracks().forEach((t) => t.stop());
+    setShowCamera(false);
+
+    lerDataViaOCR(imageData);
+  }
+
+  async function lerDataViaOCR(imageData) {
+    const result = await Tesseract.recognize(imageData, "por");
+
+    const texto = result.data.text;
+
+    const regexData =
+      /(\d{4}[\/\-\.]\d{2}[\/\-\.]\d{2})|(\d{2}[\/\-\.]\d{2}[\/\-\.]\d{4})/;
+
+    const d = texto.match(regexData);
+
+    if (d) {
+      let dt = d[0].replace(/\./g, "-").replace(/\//g, "-");
+
+      if (dt.includes("-")) {
+        const partes = dt.split("-");
+        if (partes[0].length === 2) {
+          dt = `${partes[2]}-${partes[1]}-${partes[0]}`;
+        }
+      }
+
+      setData(dt);
+      alert("Data extraída com sucesso!");
+    } else {
+      alert("Não foi possível ler a data.");
+    }
   }
 
   async function handleSubmit(e) {
@@ -163,11 +213,11 @@ export default function Despesas() {
         <button
           onClick={() => {
             setShowQR(true);
-            setTimeout(() => iniciarLeitorSequencial(), 300);
+            setTimeout(() => iniciarLeitorQR(), 300);
           }}
           className="px-4 py-2 rounded-lg font-bold bg-purple-600"
         >
-          📷 Ler Fatura (AT + Data)
+          📷 Ler Fatura (QR AT + Data via OCR)
         </button>
       </div>
 
@@ -233,26 +283,32 @@ export default function Despesas() {
       </PremiumForm>
 
       {showQR && (
-        <div
-          className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center"
-          style={{
-            backdropFilter: "blur(10px)",
-            WebkitBackdropFilter: "blur(10px)",
-          }}
-        >
-          <div
-            className="bg-[#111] border border-[#333] rounded-xl w-full max-w-md mx-4 p-4 flex flex-col gap-4 relative"
-          >
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center">
+          <div className="bg-[#111] border border-[#333] rounded-xl w-full max-w-md mx-4 p-4 flex flex-col gap-4">
             <h2 className="text-lg font-bold text-[#facc15]">
-              {fase === "AT"
-                ? "Aponte para o QR AT (fatura)"
-                : "Aponte para o QR da data"}
+              Aponte para o QR AT (fatura)
             </h2>
 
             <div
               id="qr-reader"
               className="w-full overflow-hidden rounded-lg mb-4"
               style={{ height: "260px" }}
+            />
+          </div>
+        </div>
+      )}
+
+      {showCamera && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center">
+          <div className="bg-[#111] border border-[#333] rounded-xl w-full max-w-md mx-4 p-4 flex flex-col gap-4">
+            <h2 className="text-lg font-bold text-[#facc15]">
+              Aponte a câmara para o talão
+            </h2>
+
+            <video
+              ref={videoRef}
+              className="w-full rounded-lg"
+              style={{ maxHeight: "300px" }}
             />
           </div>
         </div>
