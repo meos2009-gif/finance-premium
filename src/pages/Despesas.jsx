@@ -397,29 +397,32 @@ export default function Despesas() {
       </PremiumForm>
 
       {showQR && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md"
+  <div
+    className="fixed inset-0 z-50 bg-black/60 backdrop-blur-md flex items-center justify-center"
+    onClick={() => setShowQR(false)}
+  >
+    <div
+      className="bg-[#111] border border-[#333] rounded-xl w-full max-w-md mx-4 p-4 flex flex-col gap-4 relative"
+      style={{ pointerEvents: "auto" }}
+      onClick={(e) => e.stopPropagation()}
+    >
+      <div className="flex justify-between items-center">
+        <h2 className="text-lg font-bold text-[#facc15]">
+          Ler QR Code da Fatura
+        </h2>
+        <button
           onClick={() => setShowQR(false)}
+          className="text-sm text-gray-300 hover:text-white"
         >
-          <div
-            className="bg-[#111] border border-[#333] rounded-xl w-full max-w-md mx-4 p-4 flex flex-col gap-4"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex justify-between items-center">
-              <h2 className="text-lg font-bold text-[#facc15]">
-                Ler QR Code da Fatura
-              </h2>
-              <button
-                onClick={() => setShowQR(false)}
-                className="text-sm text-gray-300 hover:text-white"
-              >
-                Fechar ✕
-              </button>
-            </div>
-            <div id="qr-reader" className="w-full" />
-          </div>
-        </div>
-      )}
+          Fechar ✕
+        </button>
+      </div>
+
+      <div
+        id="qr-reader"
+        className="w-full overflow-hidden rounded-lg"
+        style={{ pointerEvents: "auto" }}
+      />
     </div>
-  );
-}
+  </div>
+)}
