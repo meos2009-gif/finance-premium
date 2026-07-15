@@ -5,7 +5,7 @@ import PremiumInput from "../components/PremiumInput";
 import { Html5Qrcode } from "html5-qrcode";
 
 // -------------------------------------------
-// BASE INTERNA NIF → Empresa (expandida)
+// BASE INTERNA NIF → Empresa
 // -------------------------------------------
 const empresasNIF = {
   "500853948": "Continente",
@@ -32,6 +32,17 @@ const empresasNIF = {
 };
 
 // -------------------------------------------
+// Função para gerar data de hoje (local)
+// -------------------------------------------
+function gerarDataHoje() {
+  const hoje = new Date();
+  const yyyy = hoje.getFullYear();
+  const mm = String(hoje.getMonth() + 1).padStart(2, "0");
+  const dd = String(hoje.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+// -------------------------------------------
 // Interpretar QR AT
 // -------------------------------------------
 function interpretarQR_AT(texto, setValor, setEmpresa, setData) {
@@ -50,17 +61,13 @@ function interpretarQR_AT(texto, setValor, setEmpresa, setData) {
     setValor(v);
   }
 
-  // Data (D) → se não existir, usar data atual
- if (dados["D"]) {
-  const d = dados["D"].replace(/\./g, "-").replace(/\//g, "-");
-  setData(d);
-} else {
-  const hoje = new Date();
-  const yyyy = hoje.getFullYear();
-  const mm = String(hoje.getMonth() + 1).padStart(2, "0");
-  const dd = String(hoje.getDate()).padStart(2, "0");
-  setData(`${yyyy}-${mm}-${dd}`);
-}
+  // Data (D) → se não existir, usar data de hoje
+  if (dados["D"]) {
+    const d = dados["D"].replace(/\./g, "-").replace(/\//g, "-");
+    setData(d);
+  } else {
+    setData(gerarDataHoje());
+  }
 
   // Empresa via NIF (A)
   if (dados["A"]) {
@@ -80,7 +87,7 @@ export default function Despesas() {
 
   const [descricao, setDescricao] = useState("");
   const [valor, setValor] = useState("");
-  const [data, setData] = useState("");
+  const [data, setData] = useState(gerarDataHoje()); // ← data inicial correta
   const [categoria, setCategoria] = useState("");
   const [empresa, setEmpresa] = useState("");
 
@@ -186,9 +193,10 @@ export default function Despesas() {
       user_id: session.user.id,
     });
 
+    // RESET SEGURO (sem apagar a data)
     setDescricao("");
     setValor("");
-    setData("");
+    setData(gerarDataHoje()); // ← mantém sempre uma data válida
     setCategoria("");
     setEmpresa("");
   }
