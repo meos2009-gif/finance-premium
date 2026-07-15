@@ -55,8 +55,11 @@ function interpretarQR_AT(texto, setValor, setEmpresa, setData) {
     const d = dados["D"].replace(/\./g, "-").replace(/\//g, "-");
     setData(d);
   } else {
-    const hoje = new Date().toISOString().slice(0, 10);
-    setData(hoje);
+    const hoje = new Date();
+const yyyy = hoje.getFullYear();
+const mm = String(hoje.getMonth() + 1).padStart(2, "0");
+const dd = String(hoje.getDate()).padStart(2, "0");
+setData(`${yyyy}-${mm}-${dd}`);
   }
 
   // Empresa via NIF (A)
