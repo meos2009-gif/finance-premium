@@ -43,27 +43,17 @@ function gerarDataHoje() {
 }
 
 // -------------------------------------------
-// Interpretar QR AT
+// Interpretador QR AT (versão atual)
 // -------------------------------------------
-function interpretarQR_AT(
-  texto,
-  setValor,
-  setEmpresa,
-  setData,
-  setDescricao
-) {
-  // Aceita QR separados por *, ; ou quebras de linha
+function interpretarQR_AT(texto, setValor, setEmpresa, setData, setDescricao) {
   const partes = texto.split(/[\*\n;]/);
-
   const dados = {};
 
   partes.forEach((p) => {
     const idx = p.indexOf(":");
     if (idx === -1) return;
-
     const chave = p.substring(0, idx).trim();
     const valor = p.substring(idx + 1).trim();
-
     dados[chave] = valor;
   });
 
@@ -72,21 +62,22 @@ function interpretarQR_AT(
   // -----------------------------
   if (dados.F) {
     const d = dados.F;
-
     if (d.length === 8) {
-      setData(
-        `${d.substring(0, 4)}-${d.substring(4, 6)}-${d.substring(6, 8)}`
-      );
+      const yyyy = d.substring(0, 4);
+      const mm = d.substring(4, 6);
+      const dd = d.substring(6, 8);
+      setData(`${yyyy}-${mm}-${dd}`);
+    } else {
+      setData(gerarDataHoje());
     }
   } else {
     setData(gerarDataHoje());
   }
 
   // -----------------------------
-  // VALOR TOTAL
+  // VALOR TOTAL (O ou I2)
   // -----------------------------
   const total = dados.O || dados.I2;
-
   if (total) {
     setValor(total.replace(",", "."));
   }
@@ -96,7 +87,6 @@ function interpretarQR_AT(
   // -----------------------------
   if (dados.A) {
     const nif = dados.A.replace(/\D/g, "");
-
     if (empresasNIF[nif]) {
       setEmpresa(empresasNIF[nif]);
     } else {
@@ -105,7 +95,7 @@ function interpretarQR_AT(
   }
 
   // -----------------------------
-  // Nº DA FATURA
+  // Nº DA FATURA (G)
   // -----------------------------
   if (dados.G) {
     setDescricao(dados.G);
@@ -115,20 +105,30 @@ function interpretarQR_AT(
 
   console.log("QR AT:", dados);
 }
-  }
-}
 
+// -------------------------------------------
+// COMPONENTE PRINCIPAL
+// -------------------------------------------
 export default function Despesas() {
   const [categorias, setCategorias] = useState([]);
   const [empresas, setEmpresas] = useState([]);
 
   const [descricao, setDescricao] = useState("");
   const [valor, setValor] = useState("");
-  const [data, setData] = useState(gerarDataHoje()); // ← data inicial correta
+  const [data, setData] = useState(gerarDataHoje());
   const [categoria, setCategoria] = useState("");
   const [empresa, setEmpresa] = useState("");
 
   const [showQR, setShowQR] = useState(false);
+
+  // -------------------------------------------
+  // Garantir que a data NUNCA fica inválida
+  // -------------------------------------------
+  useEffect(() => {
+    if (!data || data.length !== 10) {
+      setData(gerarDataHoje());
+    }
+  }, [data]);
 
   // -------------------------------------------
   // Carregar categorias e empresas
@@ -176,18 +176,10 @@ export default function Despesas() {
         disableFlip: true,
       },
       async (qrText) => {
-        console.log(qrText);
+        interpretarQR_AT(qrText, setValor, setEmpresa, setData, setDescricao);
 
-interpretarQR_AT(
-  qrText,
-  setValor,
-  setEmpresa,
-  setData,
-  setDescricao
-);
-
-await html5QrCode.stop();
-setShowQR(false);
+        await html5QrCode.stop();
+        setShowQR(false);
       },
       (error) => console.log("Erro QR:", error)
     );
@@ -236,10 +228,10 @@ setShowQR(false);
       user_id: session.user.id,
     });
 
-    // RESET SEGURO (sem apagar a data)
+    // RESET SEGURO
     setDescricao("");
     setValor("");
-    setData(gerarDataHoje()); // ← mantém sempre uma data válida
+    setData(gerarDataHoje());
     setCategoria("");
     setEmpresa("");
   }
