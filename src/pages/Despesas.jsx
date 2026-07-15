@@ -4,9 +4,9 @@ import PremiumForm from "../components/PremiumForm";
 import PremiumInput from "../components/PremiumInput";
 import { Html5Qrcode } from "html5-qrcode";
 
-// -----------------------------
-// BASE INTERNA NIF → Empresa
-// -----------------------------
+// -------------------------------------------
+// BASE INTERNA NIF → Empresa (expandida)
+// -------------------------------------------
 const empresasNIF = {
   "500853948": "Continente",
   "500081493": "Pingo Doce",
@@ -22,12 +22,18 @@ const empresasNIF = {
   "501627778": "IKEA",
   "509560094": "Burger King",
   "500000000": "McDonald's",
-  "500777600": "Prio"
+  "500777600": "Prio",
+  "509352825": "Mercadona",
+  "509849564": "KFC",
+  "509980082": "H&M",
+  "509300130": "Zara",
+  "509300131": "Pull&Bear",
+  "509300132": "Bershka"
 };
 
-// -----------------------------
+// -------------------------------------------
 // Interpretar QR AT
-// -----------------------------
+// -------------------------------------------
 function interpretarQR_AT(texto, setValor, setEmpresa, setData) {
   const partes = texto.split("*").map((p) => p.trim());
   let dados = {};
@@ -44,19 +50,23 @@ function interpretarQR_AT(texto, setValor, setEmpresa, setData) {
     setValor(v);
   }
 
-  // Data (D)
+  // Data (D) → se não existir, usar data atual
   if (dados["D"]) {
     const d = dados["D"].replace(/\./g, "-").replace(/\//g, "-");
     setData(d);
+  } else {
+    const hoje = new Date().toISOString().slice(0, 10);
+    setData(hoje);
   }
 
   // Empresa via NIF (A)
   if (dados["A"]) {
     const nif = dados["A"].replace(/[^0-9]/g, "");
+
     if (empresasNIF[nif]) {
       setEmpresa(empresasNIF[nif]);
     } else {
-      setEmpresa(`NIF ${nif}`);
+      setEmpresa(`Empresa desconhecida (NIF ${nif})`);
     }
   }
 }
@@ -73,9 +83,9 @@ export default function Despesas() {
 
   const [showQR, setShowQR] = useState(false);
 
-  // -----------------------------
+  // -------------------------------------------
   // Carregar categorias e empresas
-  // -----------------------------
+  // -------------------------------------------
   useEffect(() => {
     async function load() {
       const { data: session } = await supabase.auth.getUser();
@@ -96,9 +106,9 @@ export default function Despesas() {
     load();
   }, []);
 
-  // -----------------------------
+  // -------------------------------------------
   // QR AT em tempo real
-  // -----------------------------
+  // -------------------------------------------
   async function iniciarLeitorQR() {
     const html5QrCode = new Html5Qrcode("qr-reader");
 
@@ -130,9 +140,9 @@ export default function Despesas() {
     );
   }
 
-  // -----------------------------
+  // -------------------------------------------
   // Submeter despesa
-  // -----------------------------
+  // -------------------------------------------
   async function handleSubmit(e) {
     e.preventDefault();
 
@@ -180,9 +190,9 @@ export default function Despesas() {
     setEmpresa("");
   }
 
-  // -----------------------------
+  // -------------------------------------------
   // UI
-  // -----------------------------
+  // -------------------------------------------
   return (
     <div className="text-white flex flex-col gap-10 px-4 md:px-0 w-full">
       
