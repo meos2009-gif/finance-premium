@@ -45,39 +45,76 @@ function gerarDataHoje() {
 // -------------------------------------------
 // Interpretar QR AT
 // -------------------------------------------
-function interpretarQR_AT(texto, setValor, setEmpresa, setData) {
-  const partes = texto.split("*").map((p) => p.trim());
-  let dados = {};
+function interpretarQR_AT(
+  texto,
+  setValor,
+  setEmpresa,
+  setData,
+  setDescricao
+) {
+  // Aceita QR separados por *, ; ou quebras de linha
+  const partes = texto.split(/[\*\n;]/);
+
+  const dados = {};
 
   partes.forEach((p) => {
-    const [key, value] = p.split(":");
-    if (!key || !value) return;
-    dados[key.trim()] = value.trim();
+    const idx = p.indexOf(":");
+    if (idx === -1) return;
+
+    const chave = p.substring(0, idx).trim();
+    const valor = p.substring(idx + 1).trim();
+
+    dados[chave] = valor;
   });
 
-  // Valor total (O)
-  if (dados["O"]) {
-    const v = dados["O"].replace(",", ".").replace(/[^0-9.]/g, "");
-    setValor(v);
-  }
+  // -----------------------------
+  // DATA (F)
+  // -----------------------------
+  if (dados.F) {
+    const d = dados.F;
 
-  // Data (D) → se não existir, usar data de hoje
-  if (dados["D"]) {
-    const d = dados["D"].replace(/\./g, "-").replace(/\//g, "-");
-    setData(d);
+    if (d.length === 8) {
+      setData(
+        `${d.substring(0, 4)}-${d.substring(4, 6)}-${d.substring(6, 8)}`
+      );
+    }
   } else {
     setData(gerarDataHoje());
   }
 
-  // Empresa via NIF (A)
-  if (dados["A"]) {
-    const nif = dados["A"].replace(/[^0-9]/g, "");
+  // -----------------------------
+  // VALOR TOTAL
+  // -----------------------------
+  const total = dados.O || dados.I2;
+
+  if (total) {
+    setValor(total.replace(",", "."));
+  }
+
+  // -----------------------------
+  // EMPRESA (NIF)
+  // -----------------------------
+  if (dados.A) {
+    const nif = dados.A.replace(/\D/g, "");
 
     if (empresasNIF[nif]) {
       setEmpresa(empresasNIF[nif]);
     } else {
-      setEmpresa(`Empresa desconhecida (NIF ${nif})`);
+      setEmpresa(`NIF ${nif}`);
     }
+  }
+
+  // -----------------------------
+  // Nº DA FATURA
+  // -----------------------------
+  if (dados.G) {
+    setDescricao(dados.G);
+  } else {
+    setDescricao("Fatura");
+  }
+
+  console.log("QR AT:", dados);
+}
   }
 }
 
@@ -139,12 +176,18 @@ export default function Despesas() {
         disableFlip: true,
       },
       async (qrText) => {
-        interpretarQR_AT(qrText, setValor, setEmpresa, setData);
+        console.log(qrText);
 
-        await html5QrCode.stop();
-        setShowQR(false);
+interpretarQR_AT(
+  qrText,
+  setValor,
+  setEmpresa,
+  setData,
+  setDescricao
+);
 
-        setDescricao("Fatura");
+await html5QrCode.stop();
+setShowQR(false);
       },
       (error) => console.log("Erro QR:", error)
     );
