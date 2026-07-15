@@ -1,107 +1,32 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "../supabaseClient";
 import PremiumForm from "../components/PremiumForm";
 import PremiumInput from "../components/PremiumInput";
 import { Html5Qrcode } from "html5-qrcode";
-import Tesseract from "tesseract.js";
 
 // -----------------------------
-// INCM + simplificação de nome
+// BASE INTERNA NIF → Empresa
 // -----------------------------
-function simplificarNomeLegal(nome) {
-  if (!nome) return null;
-
-  const mapaSimplificado = {
-    "Modelo Continente": "Continente",
-    "Jerónimo Martins": "Pingo Doce",
-    "Lidl": "Lidl",
-    "Repsol": "Repsol",
-    "Galp": "Galp",
-    "Auchan": "Auchan",
-    "Minipreço": "Minipreço",
-    "Intermarché": "Intermarché",
-    "Prio": "Prio",
-    "McDonald's": "McDonald's",
-    "Burger King": "Burger King",
-    "Worten": "Worten",
-    "Fnac": "Fnac",
-    "Decathlon": "Decathlon",
-    "Leroy Merlin": "Leroy Merlin",
-    "IKEA": "IKEA",
-    "Bricomarché": "Bricomarché",
-    "BP": "BP",
-    "Jumbo": "Jumbo",
-    "MEO": "MEO",
-    "Vodafone": "Vodafone",
-    "NOS": "NOS"
-  };
-
-  for (const chave in mapaSimplificado) {
-    if (nome.includes(chave)) {
-      return mapaSimplificado[chave];
-    }
-  }
-
-  return nome.split(",")[0];
-}
-
-async function buscarNomeLegalINCM(nif) {
-  try {
-    const resposta = await fetch(`https://transparencia.incm.pt/api/empresas?nif=${nif}`);
-    const dados = await resposta.json();
-
-    if (dados && dados.nome) {
-      return simplificarNomeLegal(dados.nome);
-    }
-
-    return null;
-  } catch (e) {
-    return null;
-  }
-}
+const empresasNIF = {
+  "500853948": "Continente",
+  "500081493": "Pingo Doce",
+  "510082347": "Lidl",
+  "500777600": "Repsol",
+  "500379486": "Galp",
+  "504141825": "Auchan",
+  "501442798": "Intermarché",
+  "501413197": "Worten",
+  "502292800": "Fnac",
+  "503467044": "Decathlon",
+  "505075082": "Leroy Merlin",
+  "501627778": "IKEA",
+  "509560094": "Burger King",
+  "500000000": "McDonald's",
+  "500777600": "Prio"
+};
 
 // -----------------------------
-// OCR cabeçalho (nome da loja)
-// -----------------------------
-function extrairNomeLojaCabecalho(texto) {
-  const lojas = [
-    "CONTINENTE",
-    "PINGO DOCE",
-    "LIDL",
-    "REPSOL",
-    "GALP",
-    "AUCHAN",
-    "MINIPREÇO",
-    "INTERMARCHÉ",
-    "PRIO",
-    "MCDONALD",
-    "BURGER KING",
-    "WORTEN",
-    "FNAC",
-    "DECATHLON",
-    "LERoy MERLIN",
-    "IKEA",
-    "BRICOMARCHÉ",
-    "BP",
-    "JUMBO",
-    "MEO",
-    "VODAFONE",
-    "NOS"
-  ];
-
-  const linhas = texto.split("\n").map(l => l.trim().toUpperCase());
-
-  for (const linha of linhas) {
-    for (const loja of lojas) {
-      if (linha.includes(loja)) return linha;
-    }
-  }
-
-  return null;
-}
-
-// -----------------------------
-// QR AT parser
+// Interpretar QR AT
 // -----------------------------
 function interpretarQR_AT(texto, setValor, setEmpresa, setData) {
   const partes = texto.split("*").map((p) => p.trim());
@@ -125,17 +50,14 @@ function interpretarQR_AT(texto, setValor, setEmpresa, setData) {
     setData(d);
   }
 
-  // NIF (A) → INCM
+  // Empresa via NIF (A)
   if (dados["A"]) {
     const nif = dados["A"].replace(/[^0-9]/g, "");
-
-    buscarNomeLegalINCM(nif).then((nome) => {
-      if (nome) {
-        setEmpresa(nome);
-      } else {
-        setEmpresa(`NIF ${nif}`);
-      }
-    });
+    if (empresasNIF[nif]) {
+      setEmpresa(empresasNIF[nif]);
+    } else {
+      setEmpresa(`NIF ${nif}`);
+    }
   }
 }
 
@@ -150,10 +72,6 @@ export default function Despesas() {
   const [empresa, setEmpresa] = useState("");
 
   const [showQR, setShowQR] = useState(false);
-  const [showCameraCabecalho, setShowCameraCabecalho] = useState(false);
-
-  const videoRef = useRef(null);
-  const streamRef = useRef(null);
 
   // -----------------------------
   // Carregar categorias e empresas
@@ -207,56 +125,9 @@ export default function Despesas() {
         setShowQR(false);
 
         setDescricao("Fatura");
-
-        setTimeout(() => abrirCameraParaCabecalho(), 300);
       },
       (error) => console.log("Erro QR:", error)
     );
-  }
-
-  // -----------------------------
-  // Câmara para cabeçalho (OCR)
-// -----------------------------
-  async function abrirCameraParaCabecalho() {
-    setShowCameraCabecalho(true);
-
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "environment" },
-      });
-
-      streamRef.current = stream;
-      videoRef.current.srcObject = stream;
-      videoRef.current.play();
-    } catch (err) {
-      alert("Erro ao abrir a câmara.");
-    }
-  }
-
-  async function tirarFotoCabecalho() {
-    const video = videoRef.current;
-    const canvas = document.createElement("canvas");
-
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-
-    const ctx = canvas.getContext("2d");
-    ctx.drawImage(video, 0, 0);
-
-    const imageData = canvas.toDataURL("image/png");
-
-    streamRef.current.getTracks().forEach((t) => t.stop());
-    setShowCameraCabecalho(false);
-
-    const result = await Tesseract.recognize(imageData, "por");
-    const texto = result.data.text;
-
-    const loja = extrairNomeLojaCabecalho(texto);
-    if (loja) {
-      setEmpresa(loja);
-    } else {
-      alert("Não foi possível identificar o nome da loja. Tente aproximar mais o cabeçalho.");
-    }
   }
 
   // -----------------------------
@@ -327,7 +198,7 @@ export default function Despesas() {
           }}
           className="px-4 py-2 rounded-lg font-bold bg-purple-600"
         >
-          📷 Ler QR AT + Cabeçalho
+          📷 Ler QR AT
         </button>
       </div>
 
@@ -358,12 +229,29 @@ export default function Despesas() {
           required
         />
 
-        <div className="flex flex.col gap-1">
+        <div className="flex flex-col gap-1">
+          <label className="text-sm text-gray-300">Empresa</label>
+          <input
+            list="lista-empresas"
+            value={empresa}
+            onChange={(e) => setEmpresa(e.target.value)}
+            placeholder="Escreva ou selecione"
+            className="bg-[#111] border border-[#333] text-white rounded-lg px-4 py-3"
+            required
+          />
+          <datalist id="lista-empresas">
+            {empresas.map((e) => (
+              <option key={e.id} value={e.name} />
+            ))}
+          </datalist>
+        </div>
+
+        <div className="flex flex-col gap-1">
           <label className="text-sm text-gray-300">Categoria</label>
           <select
             value={categoria}
             onChange={(e) => setCategoria(e.target.value)}
-            className="bg-[#111] border border-[#333] text.white rounded-lg px-4 py-3"
+            className="bg-[#111] border border-[#333] text-white rounded-lg px-4 py-3"
             required
           >
             <option value="">Selecione</option>
@@ -375,27 +263,10 @@ export default function Despesas() {
           </select>
         </div>
 
-        <div className="flex flex-col gap-1">
-          <label className="text-sm text-gray-300">Empresa</label>
-          <input
-            list="lista-empresas"
-            value={empresa}
-            onChange={(e) => setEmpresa(e.target.value)}
-            placeholder="Escreva ou selecione"
-            className="bg-[#111] border border-[#333] text.white rounded-lg px-4 py-3"
-            required
-          />
-          <datalist id="lista-empresas">
-            {empresas.map((e) => (
-              <option key={e.id} value={e.name} />
-            ))}
-          </datalist>
-        </div>
-
       </PremiumForm>
 
       {showQR && (
-        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify.center">
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center">
           <div className="bg-[#111] border border-[#333] rounded-xl w-full max-w-md mx-4 p-4 flex flex-col gap-4">
             <h2 className="text-lg font-bold text-[#facc15]">
               Aponte para o QR AT da fatura
@@ -406,29 +277,6 @@ export default function Despesas() {
               className="w-full overflow-hidden rounded-lg mb-4"
               style={{ height: "260px" }}
             />
-          </div>
-        </div>
-      )}
-
-      {showCameraCabecalho && (
-        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify.center">
-          <div className="bg-[#111] border border-[#333] rounded-xl w-full max-w-md mx-4 p-4 flex flex-col gap-4">
-            <h2 className="text-lg font-bold text-[#facc15]">
-              Aponte a câmara para o cabeçalho da fatura
-            </h2>
-
-            <video
-              ref={videoRef}
-              className="w-full rounded-lg"
-              style={{ maxHeight: "300px" }}
-            />
-
-            <button
-              onClick={tirarFotoCabecalho}
-              className="px-4 py-3 rounded-lg font-bold bg-yellow-500 text-black text-lg"
-            >
-              📸 Tirar Foto do Cabeçalho
-            </button>
           </div>
         </div>
       )}
