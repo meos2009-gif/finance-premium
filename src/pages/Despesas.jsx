@@ -25,7 +25,8 @@ function interpretarQR_AT(
   setDescricao,
   setNifLido,
   empresas,
-  setEmpresa
+  setEmpresa,
+  setCategoria
 ) {
   const partes = texto.split(/[\*\n;]/);
   const dados = {};
@@ -63,9 +64,15 @@ function interpretarQR_AT(
     const existente = empresas.find((e) => e.nif === nif);
 
     if (existente) {
-      setEmpresa(existente.name); // MOSTRA O NOME REAL
+      setEmpresa(existente.name);
+
+      // AUTO-CATEGORIA
+      if (existente.categoria_padrao) {
+        setCategoria(existente.categoria_padrao);
+      }
     } else {
-      setEmpresa(""); // deixa para tu escreveres
+      setEmpresa("");
+      setCategoria("");
     }
   }
 
@@ -146,7 +153,8 @@ export default function Despesas() {
           setDescricao,
           setNifLido,
           empresas,
-          setEmpresa
+          setEmpresa,
+          setCategoria
         );
 
         await html5QrCode.stop();
@@ -182,12 +190,22 @@ export default function Despesas() {
 
       if (existente) {
         empresaId = existente.id;
+
+        // atualizar categoria padrão se mudou
+        if (categoria && categoria !== existente.categoria_padrao) {
+          await supabase
+            .from("empresas")
+            .update({ categoria_padrao: categoria })
+            .eq("id", existente.id);
+        }
+
       } else {
         const { data: nova } = await supabase
           .from("empresas")
           .insert({
             name: empresa,
             nif: nifLido || null,
+            categoria_padrao: categoria || null,
             user_id: session.user.id,
           })
           .select()
@@ -195,7 +213,6 @@ export default function Despesas() {
 
         empresaId = nova.id;
 
-        // ATUALIZAR LISTA DE EMPRESAS
         await carregarEmpresasECategorias();
       }
     }
@@ -303,7 +320,7 @@ export default function Despesas() {
 
       {showQR && (
         <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center">
-          <div className="bg-[#111] border border-[#333] rounded-xl w-full max-w-md mx-4 p-4 flex flex-col gap-4">
+          <div className="bg-[#111] border border-[#333] rounded-xl w.full max-w-md mx-4 p-4 flex flex-col gap-4">
             <h2 className="text-lg font-bold text-[#facc15]">
               Aponte para o QR AT da fatura
             </h2>
