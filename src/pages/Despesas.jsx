@@ -4,9 +4,6 @@ import PremiumForm from "../components/PremiumForm";
 import PremiumInput from "../components/PremiumInput";
 import { Html5Qrcode } from "html5-qrcode";
 
-// -------------------------------------------
-// Data de hoje
-// -------------------------------------------
 function gerarDataHoje() {
   const hoje = new Date();
   const yyyy = hoje.getFullYear();
@@ -15,13 +12,10 @@ function gerarDataHoje() {
   return `${yyyy}-${mm}-${dd}`;
 }
 
-// -------------------------------------------
-// Interpretador QR AT (F, O, I2, A, G)
-// -------------------------------------------
+// QR AT: só lê, não mexe no nome da empresa
 function interpretarQR_AT(
   texto,
   setValor,
-  setEmpresa,
   setData,
   setDescricao,
   setNifLido
@@ -58,11 +52,10 @@ function interpretarQR_AT(
     setValor(total.replace(",", "."));
   }
 
-  // EMPRESA (NIF)
+  // NIF (A) — só guarda em estado, não mexe no campo empresa
   if (dados.A) {
     const nif = dados.A.replace(/\D/g, "");
     setNifLido(nif);
-    setEmpresa(`NIF ${nif}`); // tu depois podes substituir pelo nome real
   }
 
   // Nº DA FATURA (G)
@@ -75,9 +68,6 @@ function interpretarQR_AT(
   console.log("QR AT:", dados);
 }
 
-// -------------------------------------------
-// COMPONENTE PRINCIPAL
-// -------------------------------------------
 export default function Despesas() {
   const [categorias, setCategorias] = useState([]);
   const [empresas, setEmpresas] = useState([]);
@@ -91,14 +81,12 @@ export default function Despesas() {
 
   const [showQR, setShowQR] = useState(false);
 
-  // Garantir data válida
   useEffect(() => {
     if (!data || data.length !== 10) {
       setData(gerarDataHoje());
     }
   }, [data]);
 
-  // Carregar categorias e empresas
   useEffect(() => {
     async function load() {
       const { data: session } = await supabase.auth.getUser();
@@ -119,7 +107,6 @@ export default function Despesas() {
     load();
   }, []);
 
-  // QR AT em tempo real
   async function iniciarLeitorQR() {
     const html5QrCode = new Html5Qrcode("qr-reader");
 
@@ -143,7 +130,6 @@ export default function Despesas() {
         interpretarQR_AT(
           qrText,
           setValor,
-          setEmpresa,
           setData,
           setDescricao,
           setNifLido
@@ -156,7 +142,6 @@ export default function Despesas() {
     );
   }
 
-  // Submeter despesa
   async function handleSubmit(e) {
     e.preventDefault();
 
@@ -185,7 +170,7 @@ export default function Despesas() {
         const { data: nova } = await supabase
           .from("empresas")
           .insert({
-            name: empresa,      // nome real que tu escreveste
+            name: empresa,      // SEMPRE o que está no input
             nif: nifLido || null,
             user_id: session.user.id,
           })
@@ -207,7 +192,6 @@ export default function Despesas() {
       user_id: session.user.id,
     });
 
-    // RESET
     setDescricao("");
     setValor("");
     setData(gerarDataHoje());
@@ -216,7 +200,6 @@ export default function Despesas() {
     setNifLido(null);
   }
 
-  // UI
   return (
     <div className="text-white flex flex-col gap-10 px-4 md:px-0 w-full">
       
