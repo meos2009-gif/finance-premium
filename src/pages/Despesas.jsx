@@ -212,22 +212,20 @@ export default function Despesas() {
   return (
     <div className="text-white flex flex-col gap-10 px-4 md:px-0 w-full">
 
-      <div className="flex justify-between items-center gap-3">
-        <h1 className="text-2xl font-bold text-[#facc15]">
-          Adicionar Despesa
-        </h1>
+      {/* BOTÃO FIXO — SEMPRE VISÍVEL */}
+      <button
+        onClick={() => {
+          setShowQR(true);
+          setTimeout(() => iniciarLeitorQR(), 300);
+        }}
+        className="fixed top-4 right-4 z-[9999] px-4 py-2 rounded-lg font-bold bg-purple-600 text-white shadow-lg"
+      >
+        📷 QR
+      </button>
 
-        {/* BOTÃO DA CÂMARA — AGORA VISÍVEL */}
-        <button
-          onClick={() => {
-            setShowQR(true);
-            setTimeout(() => iniciarLeitorQR(), 300);
-          }}
-          className="px-4 py-2 rounded-lg font-bold bg-purple-600 text-white"
-        >
-          📷 Ler QR AT
-        </button>
-      </div>
+      <h1 className="text-2xl font-bold text-[#facc15] mt-16">
+        Adicionar Despesa
+      </h1>
 
       <PremiumForm title="Nova Despesa" onSubmit={handleSubmit}>
         
