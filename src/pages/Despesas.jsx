@@ -108,6 +108,7 @@ export default function Despesas() {
     carregarEmpresasECategorias();
   }, []);
 
+  // QR pela câmara
   async function iniciarLeitorQR() {
     const html5QrCode = new Html5Qrcode("qr-reader");
 
@@ -144,6 +145,49 @@ export default function Despesas() {
         setShowQR(false);
       }
     );
+  }
+
+  // QR de imagem (screenshot)
+  async function handleImageUpload(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    try {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+
+      reader.onload = async () => {
+        const imageData = reader.result;
+
+        const qrReader = new Html5Qrcode("qr-reader-temp");
+
+        try {
+          const qrText = await qrReader.scanFile(imageData, true);
+
+          interpretarQR_AT(
+            qrText,
+            setValor,
+            setData,
+            setDescricao,
+            setNifLido,
+            empresas,
+            categorias,
+            setEmpresa,
+            setCategoria
+          );
+
+          alert("QR encontrado na imagem!");
+        } catch (err) {
+          console.error(err);
+          alert("Não foi possível encontrar QR na imagem.");
+        }
+      };
+    } catch (err) {
+      console.error(err);
+      alert("Erro ao processar imagem.");
+    } finally {
+      e.target.value = "";
+    }
   }
 
   async function handleSubmit(e) {
@@ -221,8 +265,10 @@ export default function Despesas() {
         Adicionar Despesa
       </h1>
 
-      {/* BOTÃO SCANNER PREMIUM ▦ (sem roxo) */}
-      <div className="w-full flex justify-end mt-2">
+      {/* BOTÕES QR */}
+      <div className="w-full flex justify-end mt-2 gap-2">
+
+        {/* Scanner ▦ */}
         <button
           onClick={() => {
             setShowQR(true);
@@ -239,6 +285,30 @@ export default function Despesas() {
           <span className="text-xl">▦</span>
           Ler QR AT
         </button>
+
+        {/* QR de imagem */}
+        <input
+          type="file"
+          accept="image/*"
+          onChange={handleImageUpload}
+          className="hidden"
+          id="imageInput"
+        />
+        <label
+          htmlFor="imageInput"
+          className="
+            px-4 py-2 rounded-lg font-bold text-white flex items-center gap-2
+            bg-gray-700
+            shadow-[0_0_10px_rgba(255,255,255,0.5)]
+            hover:shadow-[0_0_18px_rgba(255,255,255,0.9)]
+            transition-all duration-300
+            cursor-pointer
+          "
+        >
+          <span className="text-xl">🖼️</span>
+          Ler QR Imagem
+        </label>
+
       </div>
 
       <PremiumForm title="Nova Despesa" onSubmit={handleSubmit}>
@@ -304,6 +374,7 @@ export default function Despesas() {
 
       </PremiumForm>
 
+      {/* Modal QR AT */}
       {showQR && (
         <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center">
           <div className="bg-[#111] border border-[#333] rounded-xl w-full max-w-md mx-4 p-4 flex flex-col gap-4">
@@ -319,6 +390,9 @@ export default function Despesas() {
           </div>
         </div>
       )}
+
+      {/* Leitor temporário para QR de imagem */}
+      <div id="qr-reader-temp" style={{ display: "none" }}></div>
 
     </div>
   );
