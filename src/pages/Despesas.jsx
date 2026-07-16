@@ -4,9 +4,6 @@ import PremiumForm from "../components/PremiumForm";
 import PremiumInput from "../components/PremiumInput";
 import { Html5Qrcode } from "html5-qrcode";
 
-// -------------------------------------------
-// Data de hoje
-// -------------------------------------------
 function gerarDataHoje() {
   const hoje = new Date();
   const yyyy = hoje.getFullYear();
@@ -15,9 +12,6 @@ function gerarDataHoje() {
   return `${yyyy}-${mm}-${dd}`;
 }
 
-// -------------------------------------------
-// Interpretador QR AT
-// -------------------------------------------
 function interpretarQR_AT(
   texto,
   setValor,
@@ -25,6 +19,7 @@ function interpretarQR_AT(
   setDescricao,
   setNifLido,
   empresas,
+  categorias,
   setEmpresa,
   setCategoria
 ) {
@@ -60,15 +55,17 @@ function interpretarQR_AT(
     const nif = dados.A.replace(/\D/g, "");
     setNifLido(nif);
 
-    // procurar empresa na BD
     const existente = empresas.find((e) => e.nif === nif);
 
     if (existente) {
       setEmpresa(existente.name);
 
-      // AUTO-CATEGORIA
+      // AUTO-CATEGORIA (ID → nome)
       if (existente.categoria_padrao) {
-        setCategoria(existente.categoria_padrao);
+        const cat = categorias.find(c => c.id === existente.categoria_padrao);
+        if (cat) {
+          setCategoria(cat.id);
+        }
       }
     } else {
       setEmpresa("");
@@ -80,9 +77,6 @@ function interpretarQR_AT(
   setDescricao(dados.G || "Fatura");
 }
 
-// -------------------------------------------
-// COMPONENTE PRINCIPAL
-// -------------------------------------------
 export default function Despesas() {
   const [categorias, setCategorias] = useState([]);
   const [empresas, setEmpresas] = useState([]);
@@ -96,14 +90,6 @@ export default function Despesas() {
 
   const [showQR, setShowQR] = useState(false);
 
-  // Garantir data válida
-  useEffect(() => {
-    if (!data || data.length !== 10) {
-      setData(gerarDataHoje());
-    }
-  }, [data]);
-
-  // Carregar categorias e empresas
   async function carregarEmpresasECategorias() {
     const { data: session } = await supabase.auth.getUser();
     if (!session?.user) return;
@@ -125,7 +111,6 @@ export default function Despesas() {
     carregarEmpresasECategorias();
   }, []);
 
-  // QR AT em tempo real
   async function iniciarLeitorQR() {
     const html5QrCode = new Html5Qrcode("qr-reader");
 
@@ -153,18 +138,17 @@ export default function Despesas() {
           setDescricao,
           setNifLido,
           empresas,
+          categorias,
           setEmpresa,
           setCategoria
         );
 
         await html5QrCode.stop();
         setShowQR(false);
-      },
-      (error) => console.log("Erro QR:", error)
+      }
     );
   }
 
-  // Submeter despesa
   async function handleSubmit(e) {
     e.preventDefault();
 
@@ -176,12 +160,10 @@ export default function Despesas() {
     if (empresa.trim() !== "") {
       let existente = null;
 
-      // procurar por NIF
       if (nifLido) {
         existente = empresas.find((x) => x.nif === nifLido);
       }
 
-      // procurar por nome
       if (!existente) {
         existente = empresas.find(
           (x) => x.name.toLowerCase() === empresa.toLowerCase()
@@ -191,7 +173,6 @@ export default function Despesas() {
       if (existente) {
         empresaId = existente.id;
 
-        // atualizar categoria padrão se mudou
         if (categoria && categoria !== existente.categoria_padrao) {
           await supabase
             .from("empresas")
@@ -235,7 +216,6 @@ export default function Despesas() {
     setNifLido(null);
   }
 
-  // UI
   return (
     <div className="text-white flex flex-col gap-10 px-4 md:px-0 w-full">
       
