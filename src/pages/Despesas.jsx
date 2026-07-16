@@ -221,16 +221,23 @@ export default function Despesas() {
         Adicionar Despesa
       </h1>
 
-      {/* BOTÃO DA CÂMARA — SEMPRE VISÍVEL */}
+      {/* BOTÃO SCANNER PREMIUM ▦ (sem roxo) */}
       <div className="w-full flex justify-end mt-2">
         <button
           onClick={() => {
             setShowQR(true);
             setTimeout(() => iniciarLeitorQR(), 300);
           }}
-          className="px-4 py-2 rounded-lg font-bold bg-purple-600 text-white"
+          className="
+            px-4 py-2 rounded-lg font-bold text-white flex items-center gap-2
+            bg-gray-700
+            shadow-[0_0_10px_rgba(255,255,255,0.5)]
+            hover:shadow-[0_0_18px_rgba(255,255,255,0.9)]
+            transition-all duration-300
+          "
         >
-          📷 Ler QR AT
+          <span className="text-xl">▦</span>
+          Ler QR AT
         </button>
       </div>
 
