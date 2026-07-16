@@ -5,33 +5,6 @@ import PremiumInput from "../components/PremiumInput";
 import { Html5Qrcode } from "html5-qrcode";
 
 // -------------------------------------------
-// BASE INTERNA NIF → Empresa
-// -------------------------------------------
-const empresasNIF = {
-  "500853948": "Continente",
-  "500081493": "Pingo Doce",
-  "510082347": "Lidl",
-  "500777600": "Repsol",
-  "500379486": "Galp",
-  "504141825": "Auchan",
-  "501442798": "Intermarché",
-  "501413197": "Worten",
-  "502292800": "Fnac",
-  "503467044": "Decathlon",
-  "505075082": "Leroy Merlin",
-  "501627778": "IKEA",
-  "509560094": "Burger King",
-  "500000000": "McDonald's",
-  "500777600": "Prio",
-  "509352825": "Mercadona",
-  "509849564": "KFC",
-  "509980082": "H&M",
-  "509300130": "Zara",
-  "509300131": "Pull&Bear",
-  "509300132": "Bershka"
-};
-
-// -------------------------------------------
 // Função para gerar data de hoje (local)
 // -------------------------------------------
 function gerarDataHoje() {
@@ -45,7 +18,15 @@ function gerarDataHoje() {
 // -------------------------------------------
 // Interpretador QR AT (versão atual)
 // -------------------------------------------
-function interpretarQR_AT(texto, setValor, setEmpresa, setData, setDescricao) {
+async function interpretarQR_AT(
+  texto,
+  setValor,
+  setEmpresa,
+  setData,
+  setDescricao,
+  empresas,
+  setEmpresas
+) {
   const partes = texto.split(/[\*\n;]/);
   const dados = {};
 
@@ -87,10 +68,28 @@ function interpretarQR_AT(texto, setValor, setEmpresa, setData, setDescricao) {
   // -----------------------------
   if (dados.A) {
     const nif = dados.A.replace(/\D/g, "");
-    if (empresasNIF[nif]) {
-      setEmpresa(empresasNIF[nif]);
+
+    // procurar empresa na BD
+    const existente = empresas.find(
+      (e) => e.name.toLowerCase() === `nif ${nif}`.toLowerCase()
+    );
+
+    if (existente) {
+      setEmpresa(existente.name);
     } else {
-      setEmpresa(`NIF ${nif}`);
+      // criar automaticamente
+      const { data: session } = await supabase.auth.getUser();
+      const { data: nova } = await supabase
+        .from("empresas")
+        .insert({
+          name: `NIF ${nif}`,
+          user_id: session.user.id,
+        })
+        .select()
+        .single();
+
+      setEmpresas((prev) => [...prev, nova]);
+      setEmpresa(nova.name);
     }
   }
 
@@ -176,7 +175,15 @@ export default function Despesas() {
         disableFlip: true,
       },
       async (qrText) => {
-        interpretarQR_AT(qrText, setValor, setEmpresa, setData, setDescricao);
+        await interpretarQR_AT(
+          qrText,
+          setValor,
+          setEmpresa,
+          setData,
+          setDescricao,
+          empresas,
+          setEmpresas
+        );
 
         await html5QrCode.stop();
         setShowQR(false);
