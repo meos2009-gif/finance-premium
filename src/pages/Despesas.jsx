@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { supabase } from "../supabaseClient";
 import PremiumForm from "../components/PremiumForm";
@@ -12,7 +13,6 @@ function gerarDataHoje() {
   return `${yyyy}-${mm}-${dd}`;
 }
 
-// QR AT: só lê, não mexe no nome da empresa
 function interpretarQR_AT(
   texto,
   setValor,
@@ -31,7 +31,6 @@ function interpretarQR_AT(
     dados[chave] = valor;
   });
 
-  // DATA (F)
   if (dados.F) {
     const d = dados.F;
     if (d.length === 8) {
@@ -46,26 +45,21 @@ function interpretarQR_AT(
     setData(gerarDataHoje());
   }
 
-  // VALOR TOTAL (O ou I2)
   const total = dados.O || dados.I2;
   if (total) {
     setValor(total.replace(",", "."));
   }
 
-  // NIF (A) — só guarda em estado, não mexe no campo empresa
   if (dados.A) {
     const nif = dados.A.replace(/\D/g, "");
     setNifLido(nif);
   }
 
-  // Nº DA FATURA (G)
   if (dados.G) {
     setDescricao(dados.G);
   } else {
     setDescricao("Fatura");
   }
-
-  console.log("QR AT:", dados);
 }
 
 export default function Despesas() {
@@ -151,13 +145,12 @@ export default function Despesas() {
     let empresaId = null;
 
     if (empresa.trim() !== "") {
-      // 1) tentar encontrar por NIF (se existir)
       let existente = null;
+
       if (nifLido) {
         existente = empresas.find((x) => x.nif === nifLido);
       }
 
-      // 2) se não encontrar por NIF, tentar por nome
       if (!existente) {
         existente = empresas.find(
           (x) => x.name.toLowerCase() === empresa.toLowerCase()
@@ -170,7 +163,7 @@ export default function Despesas() {
         const { data: nova } = await supabase
           .from("empresas")
           .insert({
-            name: empresa,      // SEMPRE o que está no input
+            name: empresa,
             nif: nifLido || null,
             user_id: session.user.id,
           })
