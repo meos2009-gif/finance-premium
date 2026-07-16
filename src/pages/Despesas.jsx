@@ -34,6 +34,7 @@ function interpretarQR_AT(
     dados[chave] = valor;
   });
 
+  // DATA
   if (dados.F) {
     const d = dados.F;
     if (d.length === 8) {
@@ -45,9 +46,11 @@ function interpretarQR_AT(
     setData(gerarDataHoje());
   }
 
+  // VALOR
   const total = dados.O || dados.I2;
   if (total) setValor(total.replace(",", "."));
 
+  // NIF → empresa + categoria
   if (dados.A) {
     const nif = dados.A.replace(/\D/g, "");
     setNifLido(nif);
@@ -67,6 +70,7 @@ function interpretarQR_AT(
     }
   }
 
+  // Nº FATURA
   setDescricao(dados.G || "Fatura");
 }
 
@@ -212,20 +216,23 @@ export default function Despesas() {
   return (
     <div className="text-white flex flex-col gap-10 px-4 md:px-0 w-full">
 
-      {/* BOTÃO FIXO — SEMPRE VISÍVEL */}
-      <button
-        onClick={() => {
-          setShowQR(true);
-          setTimeout(() => iniciarLeitorQR(), 300);
-        }}
-        className="fixed top-4 right-4 z-[9999] px-4 py-2 rounded-lg font-bold bg-purple-600 text-white shadow-lg"
-      >
-        📷 QR
-      </button>
-
-      <h1 className="text-2xl font-bold text-[#facc15] mt-16">
+      {/* TÍTULO */}
+      <h1 className="text-2xl font-bold text-[#facc15]">
         Adicionar Despesa
       </h1>
+
+      {/* BOTÃO DA CÂMARA — SEMPRE VISÍVEL */}
+      <div className="w-full flex justify-end mt-2">
+        <button
+          onClick={() => {
+            setShowQR(true);
+            setTimeout(() => iniciarLeitorQR(), 300);
+          }}
+          className="px-4 py-2 rounded-lg font-bold bg-purple-600 text-white"
+        >
+          📷 Ler QR AT
+        </button>
+      </div>
 
       <PremiumForm title="Nova Despesa" onSubmit={handleSubmit}>
         
