@@ -3,11 +3,10 @@ import { supabase } from "../supabaseClient";
 import PremiumForm from "../components/PremiumForm";
 import PremiumInput from "../components/PremiumInput";
 import { Html5Qrcode } from "html5-qrcode";
-import * as pdfjsLib from "pdfjs-dist";
 
-pdfjsLib.GlobalWorkerOptions.workerSrc =
-  "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js";
-
+// -------------------------------------------
+// Data de hoje
+// -------------------------------------------
 function gerarDataHoje() {
   const hoje = new Date();
   const yyyy = hoje.getFullYear();
@@ -16,6 +15,9 @@ function gerarDataHoje() {
   return `${yyyy}-${mm}-${dd}`;
 }
 
+// -------------------------------------------
+ // Interpretador QR AT
+// -------------------------------------------
 function interpretarQR_AT(
   texto,
   setValor,
@@ -38,7 +40,7 @@ function interpretarQR_AT(
     dados[chave] = valor;
   });
 
-  // DATA
+  // DATA (F)
   if (dados.F) {
     const d = dados.F;
     if (d.length === 8) {
@@ -50,11 +52,11 @@ function interpretarQR_AT(
     setData(gerarDataHoje());
   }
 
-  // VALOR
+  // VALOR (O ou I2)
   const total = dados.O || dados.I2;
   if (total) setValor(total.replace(",", "."));
 
-  // NIF → empresa + categoria
+  // NIF (A) → empresa + categoria
   if (dados.A) {
     const nif = dados.A.replace(/\D/g, "");
     setNifLido(nif);
@@ -74,10 +76,13 @@ function interpretarQR_AT(
     }
   }
 
-  // Nº FATURA
+  // Nº FATURA (G)
   setDescricao(dados.G || "Fatura");
 }
 
+// -------------------------------------------
+// COMPONENTE PRINCIPAL
+// -------------------------------------------
 export default function Despesas() {
   const [categorias, setCategorias] = useState([]);
   const [empresas, setEmpresas] = useState([]);
@@ -91,6 +96,7 @@ export default function Despesas() {
 
   const [showQR, setShowQR] = useState(false);
 
+  // Carregar categorias e empresas
   async function carregarEmpresasECategorias() {
     const { data: session } = await supabase.auth.getUser();
     if (!session?.user) return;
@@ -112,6 +118,14 @@ export default function Despesas() {
     carregarEmpresasECategorias();
   }, []);
 
+  // Garantir data válida
+  useEffect(() => {
+    if (!data || data.length !== 10) {
+      setData(gerarDataHoje());
+    }
+  }, [data]);
+
+  // QR AT em tempo real (câmara)
   async function iniciarLeitorQR() {
     const html5QrCode = new Html5Qrcode("qr-reader");
 
@@ -151,51 +165,7 @@ export default function Despesas() {
     );
   }
 
-  async function handlePDFUpload(e) {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    try {
-      const arrayBuffer = await file.arrayBuffer();
-      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-
-      const page = await pdf.getPage(1);
-      const viewport = page.getViewport({ scale: 2 });
-      const canvas = document.createElement("canvas");
-      const context = canvas.getContext("2d");
-
-      canvas.width = viewport.width;
-      canvas.height = viewport.height;
-
-      await page.render({ canvasContext: context, viewport }).promise;
-
-      const imageData = canvas.toDataURL("image/png");
-
-      const qrReader = new Html5Qrcode("qr-reader-temp");
-
-      const qrText = await qrReader.scanFile(imageData, true);
-
-      interpretarQR_AT(
-        qrText,
-        setValor,
-        setData,
-        setDescricao,
-        setNifLido,
-        empresas,
-        categorias,
-        setEmpresa,
-        setCategoria
-      );
-
-      alert("QR encontrado no PDF.");
-    } catch (err) {
-      console.error(err);
-      alert("Não foi possível encontrar QR no PDF.");
-    } finally {
-      e.target.value = "";
-    }
-  }
-
+  // Submeter despesa
   async function handleSubmit(e) {
     e.preventDefault();
 
@@ -207,10 +177,12 @@ export default function Despesas() {
     if (empresa.trim() !== "") {
       let existente = null;
 
+      // procurar por NIF
       if (nifLido) {
         existente = empresas.find((x) => x.nif === nifLido);
       }
 
+      // procurar por nome
       if (!existente) {
         existente = empresas.find(
           (x) => x.name.toLowerCase() === empresa.toLowerCase()
@@ -220,6 +192,7 @@ export default function Despesas() {
       if (existente) {
         empresaId = existente.id;
 
+        // atualizar categoria padrão se mudou
         if (categoria && categoria !== existente.categoria_padrao) {
           await supabase
             .from("empresas")
@@ -263,6 +236,7 @@ export default function Despesas() {
     setNifLido(null);
   }
 
+  // UI
   return (
     <div className="text-white flex flex-col gap-10 px-4 md:px-0 w-full">
       
@@ -271,32 +245,15 @@ export default function Despesas() {
           Adicionar Despesa
         </h1>
 
-        <div className="flex gap-2">
-          <button
-            onClick={() => {
-              setShowQR(true);
-              setTimeout(() => iniciarLeitorQR(), 300);
-            }}
-            className="px-4 py-2 rounded-lg font-bold bg-purple-600"
-          >
-            📷 Ler QR AT
-          </button>
-
-          <input
-            type="file"
-            accept="application/pdf"
-            onChange={handlePDFUpload}
-            className="hidden"
-            id="pdfInput"
-          />
-
-          <label
-            htmlFor="pdfInput"
-            className="px-4 py-2 rounded-lg font-bold bg-blue-600 cursor-pointer"
-          >
-            📄 Ler QR de PDF
-          </label>
-        </div>
+        <button
+          onClick={() => {
+            setShowQR(true);
+            setTimeout(() => iniciarLeitorQR(), 300);
+          }}
+          className="px-4 py-2 rounded-lg font-bold bg-purple-600"
+        >
+          📷 Ler QR AT
+        </button>
       </div>
 
       <PremiumForm title="Nova Despesa" onSubmit={handleSubmit}>
@@ -378,8 +335,6 @@ export default function Despesas() {
         </div>
       )}
 
-      {/* leitor temporário para QR de imagem/PDF */}
-      <div id="qr-reader-temp" style={{ display: "none" }}></div>
     </div>
   );
 }
