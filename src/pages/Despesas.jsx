@@ -1,10 +1,12 @@
-
 import { useEffect, useState } from "react";
 import { supabase } from "../supabaseClient";
 import PremiumForm from "../components/PremiumForm";
 import PremiumInput from "../components/PremiumInput";
 import { Html5Qrcode } from "html5-qrcode";
 
+// -------------------------------------------
+// Data de hoje
+// -------------------------------------------
 function gerarDataHoje() {
   const hoje = new Date();
   const yyyy = hoje.getFullYear();
@@ -13,12 +15,17 @@ function gerarDataHoje() {
   return `${yyyy}-${mm}-${dd}`;
 }
 
+// -------------------------------------------
+// Interpretador QR AT
+// -------------------------------------------
 function interpretarQR_AT(
   texto,
   setValor,
   setData,
   setDescricao,
-  setNifLido
+  setNifLido,
+  empresas,
+  setEmpresa
 ) {
   const partes = texto.split(/[\*\n;]/);
   const dados = {};
@@ -31,13 +38,11 @@ function interpretarQR_AT(
     dados[chave] = valor;
   });
 
+  // DATA
   if (dados.F) {
     const d = dados.F;
     if (d.length === 8) {
-      const yyyy = d.substring(0, 4);
-      const mm = d.substring(4, 6);
-      const dd = d.substring(6, 8);
-      setData(`${yyyy}-${mm}-${dd}`);
+      setData(`${d.substring(0,4)}-${d.substring(4,6)}-${d.substring(6,8)}`);
     } else {
       setData(gerarDataHoje());
     }
@@ -45,23 +50,32 @@ function interpretarQR_AT(
     setData(gerarDataHoje());
   }
 
+  // VALOR
   const total = dados.O || dados.I2;
-  if (total) {
-    setValor(total.replace(",", "."));
-  }
+  if (total) setValor(total.replace(",", "."));
 
+  // NIF
   if (dados.A) {
     const nif = dados.A.replace(/\D/g, "");
     setNifLido(nif);
+
+    // procurar empresa na BD
+    const existente = empresas.find((e) => e.nif === nif);
+
+    if (existente) {
+      setEmpresa(existente.name); // MOSTRA O NOME REAL
+    } else {
+      setEmpresa(""); // deixa para tu escreveres
+    }
   }
 
-  if (dados.G) {
-    setDescricao(dados.G);
-  } else {
-    setDescricao("Fatura");
-  }
+  // Nº FATURA
+  setDescricao(dados.G || "Fatura");
 }
 
+// -------------------------------------------
+// COMPONENTE PRINCIPAL
+// -------------------------------------------
 export default function Despesas() {
   const [categorias, setCategorias] = useState([]);
   const [empresas, setEmpresas] = useState([]);
@@ -75,32 +89,36 @@ export default function Despesas() {
 
   const [showQR, setShowQR] = useState(false);
 
+  // Garantir data válida
   useEffect(() => {
     if (!data || data.length !== 10) {
       setData(gerarDataHoje());
     }
   }, [data]);
 
+  // Carregar categorias e empresas
+  async function carregarEmpresasECategorias() {
+    const { data: session } = await supabase.auth.getUser();
+    if (!session?.user) return;
+
+    const { data: cat } = await supabase
+      .from("categories")
+      .select("*")
+      .eq("user_id", session.user.id);
+    setCategorias(cat || []);
+
+    const { data: emp } = await supabase
+      .from("empresas")
+      .select("*")
+      .eq("user_id", session.user.id);
+    setEmpresas(emp || []);
+  }
+
   useEffect(() => {
-    async function load() {
-      const { data: session } = await supabase.auth.getUser();
-      if (!session?.user) return;
-
-      const { data: cat } = await supabase
-        .from("categories")
-        .select("*")
-        .eq("user_id", session.user.id);
-      setCategorias(cat || []);
-
-      const { data: emp } = await supabase
-        .from("empresas")
-        .select("*")
-        .eq("user_id", session.user.id);
-      setEmpresas(emp || []);
-    }
-    load();
+    carregarEmpresasECategorias();
   }, []);
 
+  // QR AT em tempo real
   async function iniciarLeitorQR() {
     const html5QrCode = new Html5Qrcode("qr-reader");
 
@@ -126,7 +144,9 @@ export default function Despesas() {
           setValor,
           setData,
           setDescricao,
-          setNifLido
+          setNifLido,
+          empresas,
+          setEmpresa
         );
 
         await html5QrCode.stop();
@@ -136,6 +156,7 @@ export default function Despesas() {
     );
   }
 
+  // Submeter despesa
   async function handleSubmit(e) {
     e.preventDefault();
 
@@ -147,10 +168,12 @@ export default function Despesas() {
     if (empresa.trim() !== "") {
       let existente = null;
 
+      // procurar por NIF
       if (nifLido) {
         existente = empresas.find((x) => x.nif === nifLido);
       }
 
+      // procurar por nome
       if (!existente) {
         existente = empresas.find(
           (x) => x.name.toLowerCase() === empresa.toLowerCase()
@@ -171,7 +194,9 @@ export default function Despesas() {
           .single();
 
         empresaId = nova.id;
-        setEmpresas((prev) => [...prev, nova]);
+
+        // ATUALIZAR LISTA DE EMPRESAS
+        await carregarEmpresasECategorias();
       }
     }
 
@@ -193,6 +218,7 @@ export default function Despesas() {
     setNifLido(null);
   }
 
+  // UI
   return (
     <div className="text-white flex flex-col gap-10 px-4 md:px-0 w-full">
       
