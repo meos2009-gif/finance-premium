@@ -147,44 +147,32 @@ export default function Despesas() {
     );
   }
 
-  // QR de imagem (screenshot)
+  // QR de imagem (screenshot) — versão correta
   async function handleImageUpload(e) {
     const file = e.target.files[0];
     if (!file) return;
 
     try {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
+      const qrReader = new Html5Qrcode("qr-reader-temp");
 
-      reader.onload = async () => {
-        const imageData = reader.result;
+      const qrText = await qrReader.scanFile(file, true);
 
-        const qrReader = new Html5Qrcode("qr-reader-temp");
+      interpretarQR_AT(
+        qrText,
+        setValor,
+        setData,
+        setDescricao,
+        setNifLido,
+        empresas,
+        categorias,
+        setEmpresa,
+        setCategoria
+      );
 
-        try {
-          const qrText = await qrReader.scanFile(imageData, true);
-
-          interpretarQR_AT(
-            qrText,
-            setValor,
-            setData,
-            setDescricao,
-            setNifLido,
-            empresas,
-            categorias,
-            setEmpresa,
-            setCategoria
-          );
-
-          alert("QR encontrado na imagem!");
-        } catch (err) {
-          console.error(err);
-          alert("Não foi possível encontrar QR na imagem.");
-        }
-      };
+      alert("QR encontrado na imagem!");
     } catch (err) {
       console.error(err);
-      alert("Erro ao processar imagem.");
+      alert("Não foi possível encontrar QR na imagem.");
     } finally {
       e.target.value = "";
     }
