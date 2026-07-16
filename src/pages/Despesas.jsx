@@ -69,10 +69,8 @@ async function interpretarQR_AT(
   if (dados.A) {
     const nif = dados.A.replace(/\D/g, "");
 
-    // procurar empresa na BD
-    const existente = empresas.find(
-      (e) => e.name.toLowerCase() === `nif ${nif}`.toLowerCase()
-    );
+    // procurar empresa na BD pelo NIF
+    const existente = empresas.find((e) => e.nif === nif);
 
     if (existente) {
       setEmpresa(existente.name);
@@ -82,7 +80,8 @@ async function interpretarQR_AT(
       const { data: nova } = await supabase
         .from("empresas")
         .insert({
-          name: `NIF ${nif}`,
+          name: `Empresa ${nif}`,
+          nif: nif,
           user_id: session.user.id,
         })
         .select()
@@ -215,6 +214,7 @@ export default function Despesas() {
           .from("empresas")
           .insert({
             name: empresa,
+            nif: empresa.includes("NIF") ? empresa.replace(/\D/g, "") : null,
             user_id: session.user.id,
           })
           .select()
