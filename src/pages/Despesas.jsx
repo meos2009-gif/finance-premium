@@ -3,6 +3,10 @@ import { supabase } from "../supabaseClient";
 import PremiumForm from "../components/PremiumForm";
 import PremiumInput from "../components/PremiumInput";
 import { Html5Qrcode } from "html5-qrcode";
+import * as pdfjsLib from "pdfjs-dist";
+
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+  "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js";
 
 function gerarDataHoje() {
   const hoje = new Date();
@@ -50,7 +54,7 @@ function interpretarQR_AT(
   const total = dados.O || dados.I2;
   if (total) setValor(total.replace(",", "."));
 
-  // NIF
+  // NIF → empresa + categoria
   if (dados.A) {
     const nif = dados.A.replace(/\D/g, "");
     setNifLido(nif);
@@ -60,12 +64,9 @@ function interpretarQR_AT(
     if (existente) {
       setEmpresa(existente.name);
 
-      // AUTO-CATEGORIA (ID → nome)
       if (existente.categoria_padrao) {
         const cat = categorias.find(c => c.id === existente.categoria_padrao);
-        if (cat) {
-          setCategoria(cat.id);
-        }
+        if (cat) setCategoria(cat.id);
       }
     } else {
       setEmpresa("");
@@ -145,8 +146,54 @@ export default function Despesas() {
 
         await html5QrCode.stop();
         setShowQR(false);
-      }
+      },
+      (error) => console.log("Erro QR:", error)
     );
+  }
+
+  async function handlePDFUpload(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+
+      const page = await pdf.getPage(1);
+      const viewport = page.getViewport({ scale: 2 });
+      const canvas = document.createElement("canvas");
+      const context = canvas.getContext("2d");
+
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+
+      await page.render({ canvasContext: context, viewport }).promise;
+
+      const imageData = canvas.toDataURL("image/png");
+
+      const qrReader = new Html5Qrcode("qr-reader-temp");
+
+      const qrText = await qrReader.scanFile(imageData, true);
+
+      interpretarQR_AT(
+        qrText,
+        setValor,
+        setData,
+        setDescricao,
+        setNifLido,
+        empresas,
+        categorias,
+        setEmpresa,
+        setCategoria
+      );
+
+      alert("QR encontrado no PDF.");
+    } catch (err) {
+      console.error(err);
+      alert("Não foi possível encontrar QR no PDF.");
+    } finally {
+      e.target.value = "";
+    }
   }
 
   async function handleSubmit(e) {
@@ -224,15 +271,32 @@ export default function Despesas() {
           Adicionar Despesa
         </h1>
 
-        <button
-          onClick={() => {
-            setShowQR(true);
-            setTimeout(() => iniciarLeitorQR(), 300);
-          }}
-          className="px-4 py-2 rounded-lg font-bold bg-purple-600"
-        >
-          📷 Ler QR AT
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => {
+              setShowQR(true);
+              setTimeout(() => iniciarLeitorQR(), 300);
+            }}
+            className="px-4 py-2 rounded-lg font-bold bg-purple-600"
+          >
+            📷 Ler QR AT
+          </button>
+
+          <input
+            type="file"
+            accept="application/pdf"
+            onChange={handlePDFUpload}
+            className="hidden"
+            id="pdfInput"
+          />
+
+          <label
+            htmlFor="pdfInput"
+            className="px-4 py-2 rounded-lg font-bold bg-blue-600 cursor-pointer"
+          >
+            📄 Ler QR de PDF
+          </label>
+        </div>
       </div>
 
       <PremiumForm title="Nova Despesa" onSubmit={handleSubmit}>
@@ -300,7 +364,7 @@ export default function Despesas() {
 
       {showQR && (
         <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center">
-          <div className="bg-[#111] border border-[#333] rounded-xl w.full max-w-md mx-4 p-4 flex flex-col gap-4">
+          <div className="bg-[#111] border border-[#333] rounded-xl w-full max-w-md mx-4 p-4 flex flex-col gap-4">
             <h2 className="text-lg font-bold text-[#facc15]">
               Aponte para o QR AT da fatura
             </h2>
@@ -314,6 +378,8 @@ export default function Despesas() {
         </div>
       )}
 
+      {/* leitor temporário para QR de imagem/PDF */}
+      <div id="qr-reader-temp" style={{ display: "none" }}></div>
     </div>
   );
 }
