@@ -57,7 +57,7 @@ export default function Dashboard() {
     });
 
     const tabela = Object.keys(mapa).map(catId => {
-      const catObj = cat.find(c => c.id === Number(catId));
+      const catObj = cat.find(c => String(c.id) === String(catId));
       return {
         categoria: catObj ? catObj.name : "Sem categoria",
         meses: mapa[catId],
@@ -66,9 +66,14 @@ export default function Dashboard() {
     });
 
     setDados(tabela);
+
+    // Seleciona automaticamente a primeira categoria
+    if (tabela.length > 0) {
+      setCategoriaSelecionada(tabela[0].categoria);
+    }
   }
 
-  const dadosGrafico = categoriaSelecionada
+  const dadosGrafico = categoriaSelecionada && dados.length > 0
     ? (() => {
         const linha = dados.find(d => d.categoria === categoriaSelecionada);
         if (!linha) return null;
@@ -91,7 +96,7 @@ export default function Dashboard() {
     <div className="text-white flex flex-col gap-10 px-4 md:px-0 w-full">
 
       <h1 className="text-2xl font-bold text-[#facc15]">
-        Relatório Anual
+        Resumo Anual de Despesas
       </h1>
 
       {/* Seleção do ano */}
@@ -145,7 +150,6 @@ export default function Dashboard() {
           onChange={(e) => setCategoriaSelecionada(e.target.value)}
           className="bg-[#111] border border-[#333] text-white rounded-lg px-4 py-2"
         >
-          <option value="">Selecione</option>
           {dados.map((d, i) => (
             <option key={i} value={d.categoria}>{d.categoria}</option>
           ))}
