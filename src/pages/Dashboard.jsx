@@ -118,7 +118,17 @@ export default function Dashboard() {
         <table className="min-w-max w-full text-sm">
           <thead className="bg-[#1a1a1a]">
             <tr>
-              <th className="p-3 text-left text-[#facc15]">Categoria</th>
+              <th
+  className="
+    p-3 text-left text-[#facc15]
+    sticky left-0
+    bg-[#1a1a1a]
+    z-20
+  "
+>
+  Categoria
+</th>
+
               {MESES.map((m, i) => (
                 <th key={i} className="p-3 text-right text-[#ccc]">{m}</th>
               ))}
@@ -129,7 +139,17 @@ export default function Dashboard() {
           <tbody>
             {dados.map((linha, idx) => (
               <tr key={idx} className={idx % 2 === 0 ? "bg-[#111]" : "bg-[#151515]"}>
-                <td className="p-3 font-semibold">{linha.categoria}</td>
+                <td
+  className="
+    p-3 font-semibold
+    sticky left-0
+    bg-[#111]
+    z-10
+  "
+>
+  {linha.categoria}
+</td>
+
                 {linha.meses.map((v, i) => (
                   <td key={i} className="p-3 text-right">{v.toFixed(2)} €</td>
                 ))}
