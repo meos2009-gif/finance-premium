@@ -132,9 +132,13 @@ export default function AppLayout() {
               ${openReports ? "max-h-96" : "max-h-0"}
             `}
           >
-            <Link to="/dashboard" onClick={() => setMenuOpen(false)} className="hover:bg-[#1a1a1a] p-2 md:p-3 rounded-lg flex items-center gap-2">
-              📊 <span>Relatório Anual</span>
-            </Link>
+            <Link
+          to="/dashboard"
+          onClick={() => setMenuOpen(false)}
+         className="hover:bg-[#1a1a1a] p-2 md:p-3 rounded-lg flex items-center gap-2"
+          >
+           📊 <span>Resumo Anual de Despesas</span>
+           </Link>
 
             <Link to="/relatorio-mensal" onClick={() => setMenuOpen(false)} className="hover:bg-[#1a1a1a] p-2 md:p-3 rounded-lg flex items-center gap-2">
               📅 <span>Relatório Mensal</span>

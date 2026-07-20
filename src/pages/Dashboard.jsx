@@ -1,257 +1,163 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../supabaseClient";
-import Chart from "react-apexcharts";
-import jsPDF from "jspdf";
-import html2canvas from "html2canvas";
+import { Bar } from "react-chartjs-2";
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Tooltip,
+  Legend,
+} from "chart.js";
+
+ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip, Legend);
+
+const MESES = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
 
 export default function Dashboard() {
-  const [transacoes, setTransacoes] = useState([]);
+  const [ano, setAno] = useState(new Date().getFullYear());
   const [categorias, setCategorias] = useState([]);
-  const [empresas, setEmpresas] = useState([]);
-
-  const [anoSelecionado, setAnoSelecionado] = useState(new Date().getFullYear());
-
-  const meses = [
-    "Janeiro","Fevereiro","Março","Abril","Maio","Junho",
-    "Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"
-  ];
+  const [dados, setDados] = useState([]);
+  const [categoriaSelecionada, setCategoriaSelecionada] = useState("");
 
   useEffect(() => {
-    async function load() {
-      const { data: session } = await supabase.auth.getUser();
-      if (!session.user) return;
+    carregarDados();
+  }, [ano]);
 
-      const userId = session.user.id;
+  async function carregarDados() {
+    const { data: session } = await supabase.auth.getUser();
+    if (!session?.user) return;
 
-      const { data: trans } = await supabase
-        .from("transactions")
-        .select("*")
-        .eq("user_id", userId);
-      setTransacoes(trans || []);
+    const { data: cat } = await supabase
+      .from("categories")
+      .select("*")
+      .eq("user_id", session.user.id);
 
-      const { data: cat } = await supabase
-        .from("categories")
-        .select("*")
-        .eq("user_id", userId);
-      setCategorias(cat || []);
+    setCategorias(cat || []);
 
-      const { data: emp } = await supabase
-        .from("empresas")
-        .select("*")
-        .eq("user_id", userId);
-      setEmpresas(emp || []);
-    }
-    load();
-  }, []);
+    const { data: trans } = await supabase
+      .from("transactions")
+      .select("*")
+      .eq("user_id", session.user.id)
+      .eq("type", "expense");
 
-  // FILTRAR POR ANO (com T00:00:00 para evitar bugs de fuso horário)
-  const receitasAno = transacoes.filter((t) => {
-    const d = new Date(t.date + "T00:00:00");
-    return t.type === "income" && d.getFullYear() === anoSelecionado;
-  });
+    const filtradas = trans.filter(t => t.date.startsWith(ano.toString()));
 
-  const despesasAno = transacoes.filter((t) => {
-    const d = new Date(t.date + "T00:00:00");
-    return t.type === "expense" && d.getFullYear() === anoSelecionado;
-  });
+    const mapa = {};
 
-  const totalReceitas = receitasAno.reduce((acc, r) => acc + Number(r.amount), 0);
-  const totalDespesas = despesasAno.reduce((acc, d) => acc + Number(d.amount), 0);
-  const saldo = totalReceitas - totalDespesas;
+    filtradas.forEach(t => {
+      const catId = t.category_id;
+      const mes = new Date(t.date).getMonth(); // 0-11
 
-  // GRÁFICO ANUAL (barras)
-  const receitasPorMes = Array.from({ length: 12 }, (_, i) =>
-    receitasAno
-      .filter((t) => {
-        const d = new Date(t.date + "T00:00:00");
-        return d.getMonth() === i;
-      })
-      .reduce((acc, t) => acc + Number(t.amount), 0)
-  );
+      if (!mapa[catId]) {
+        mapa[catId] = Array(12).fill(0);
+      }
 
-  const despesasPorMes = Array.from({ length: 12 }, (_, i) =>
-    despesasAno
-      .filter((t) => {
-        const d = new Date(t.date + "T00:00:00");
-        return d.getMonth() === i;
-      })
-      .reduce((acc, t) => acc + Number(t.amount), 0)
-  );
-
-  // TOP CATEGORIAS (nomes reais)
-  const gastosPorCategoria = {};
-  despesasAno.forEach((t) => {
-    if (!gastosPorCategoria[t.category_id]) gastosPorCategoria[t.category_id] = 0;
-    gastosPorCategoria[t.category_id] += Number(t.amount);
-  });
-
-  const topCategorias = Object.entries(gastosPorCategoria)
-    .map(([id, valor]) => ({
-      nome: categorias.find((c) => c.id === id)?.name || "Categoria",
-      valor,
-    }))
-    .sort((a, b) => b.valor - a.valor)
-    .slice(0, 5);
-
-  // TOP EMPRESAS (nomes reais)
-  const gastosPorEmpresa = {};
-  despesasAno.forEach((t) => {
-    const empresaObj = empresas.find((e) => e.id === t.empresa_id);
-    const nomeEmpresa = empresaObj ? empresaObj.name : "Sem empresa";
-
-    if (!gastosPorEmpresa[nomeEmpresa]) gastosPorEmpresa[nomeEmpresa] = 0;
-    gastosPorEmpresa[nomeEmpresa] += Number(t.amount);
-  });
-
-  const topEmpresas = Object.entries(gastosPorEmpresa)
-    .map(([empresa, valor]) => ({ empresa, valor }))
-    .sort((a, b) => b.valor - a.valor)
-    .slice(0, 5);
-
-  // EXPORTAR PDF a partir do que vês na página
-  const exportarPDF = async () => {
-    const original = document.getElementById("relatorio-anual");
-    if (!original) return;
-
-    const clone = original.cloneNode(true);
-
-    const container = document.createElement("div");
-    container.style.position = "absolute";
-    container.style.top = "-9999px";
-    container.style.left = "-9999px";
-    container.style.background = "#fff";
-    container.style.color = "#000";
-    container.style.padding = "20px";
-    container.style.width = "800px";
-
-    container.appendChild(clone);
-    document.body.appendChild(container);
-
-    container.querySelectorAll("*").forEach((el) => {
-      el.style.background = "transparent";
-      el.style.color = "#000";
-      if (el.style.borderColor) el.style.borderColor = "#000";
+      mapa[catId][mes] += Number(t.amount);
     });
 
-    const canvas = await html2canvas(container, {
-      scale: 2,
-      backgroundColor: "#fff",
-      useCORS: true
+    const tabela = Object.keys(mapa).map(catId => {
+      const catObj = cat.find(c => c.id === Number(catId));
+      return {
+        categoria: catObj ? catObj.name : "Sem categoria",
+        meses: mapa[catId],
+        total: mapa[catId].reduce((a,b) => a+b, 0)
+      };
     });
 
-    const imgData = canvas.toDataURL("image/png");
-    const pdf = new jsPDF("p", "mm", "a4");
-    const larguraPDF = pdf.internal.pageSize.getWidth();
-    const proporcao = canvas.height / canvas.width;
-    const alturaImg = larguraPDF * proporcao;
+    setDados(tabela);
+  }
 
-    pdf.addImage(imgData, "PNG", 0, 0, larguraPDF, alturaImg);
-    pdf.save(`Relatorio_Anual_${anoSelecionado}.pdf`);
+  const dadosGrafico = categoriaSelecionada
+    ? (() => {
+        const linha = dados.find(d => d.categoria === categoriaSelecionada);
+        if (!linha) return null;
 
-    document.body.removeChild(container);
-  };
+        return {
+          labels: MESES,
+          datasets: [
+            {
+              label: categoriaSelecionada,
+              data: linha.meses,
+              backgroundColor: "#facc15",
+              borderRadius: 6,
+            },
+          ],
+        };
+      })()
+    : null;
 
   return (
-    <div
-      className="text-white flex flex-col gap-10 px-4 md:px-0 w-full"
-      id="relatorio-anual"
-    >
-      {/* TÍTULO */}
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-[#facc15]">
-          Relatório Anual
-        </h1>
+    <div className="text-white flex flex-col gap-10 px-4 md:px-0 w-full">
 
-        <button
-          onClick={exportarPDF}
-          className="bg-[#facc15] text-black font-bold px-4 py-2 rounded-lg hover:bg-yellow-400 transition"
+      <h1 className="text-2xl font-bold text-[#facc15]">
+        Relatório Anual
+      </h1>
+
+      {/* Seleção do ano */}
+      <div className="flex gap-4 items-center">
+        <label className="text-gray-300">Ano:</label>
+        <select
+          value={ano}
+          onChange={(e) => setAno(e.target.value)}
+          className="bg-[#111] border border-[#333] text-white rounded-lg px-4 py-2"
         >
-          Exportar PDF
-        </button>
+          <option value={ano}>{ano}</option>
+          <option value={ano - 1}>{ano - 1}</option>
+          <option value={ano - 2}>{ano - 2}</option>
+        </select>
       </div>
 
-      {/* SELECT ANO */}
-      <select
-        value={anoSelecionado}
-        onChange={(e) => setAnoSelecionado(Number(e.target.value))}
-        className="bg-[#111] border border-[#333] text-white p-2 rounded w-40"
-      >
-        {Array.from({ length: 5 }, (_, i) => anoSelecionado - i).map((ano) => (
-          <option key={ano} value={ano}>{ano}</option>
-        ))}
-      </select>
+      {/* Tabela estilo Excel */}
+      <div className="overflow-x-auto border border-[#333] rounded-xl">
+        <table className="min-w-max w-full text-sm">
+          <thead className="bg-[#1a1a1a]">
+            <tr>
+              <th className="p-3 text-left text-[#facc15]">Categoria</th>
+              {MESES.map((m, i) => (
+                <th key={i} className="p-3 text-right text-[#ccc]">{m}</th>
+              ))}
+              <th className="p-3 text-right text-[#facc15]">Total</th>
+            </tr>
+          </thead>
 
-      {/* CARDS PRINCIPAIS */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-[#111] border border-[#222] p-6 rounded-xl">
-          <h2 className="text-gray-400">Receitas</h2>
-          <p className="text-3xl font-bold text-green-400">{totalReceitas.toFixed(2)} €</p>
-        </div>
-
-        <div className="bg-[#111] border border-[#222] p-6 rounded-xl">
-          <h2 className="text-gray-400">Despesas</h2>
-          <p className="text-3xl font-bold text-red-400">{totalDespesas.toFixed(2)} €</p>
-        </div>
-
-        <div className="bg-[#111] border border-[#222] p-6 rounded-xl">
-          <h2 className="text-gray-400">Saldo</h2>
-          <p className={`text-3xl font-bold ${saldo >= 0 ? "text-green-400" : "text-red-400"}`}>
-            {saldo.toFixed(2)} €
-          </p>
-        </div>
+          <tbody>
+            {dados.map((linha, idx) => (
+              <tr key={idx} className={idx % 2 === 0 ? "bg-[#111]" : "bg-[#151515]"}>
+                <td className="p-3 font-semibold">{linha.categoria}</td>
+                {linha.meses.map((v, i) => (
+                  <td key={i} className="p-3 text-right">{v.toFixed(2)} €</td>
+                ))}
+                <td className="p-3 text-right font-bold text-green-400">
+                  {linha.total.toFixed(2)} €
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
 
-      {/* GRÁFICO ANUAL */}
-      <div className="bg-[#111] border border-[#222] p-6 rounded-xl">
-        <h2 className="text-xl font-bold mb-4 text-[#facc15]">Evolução Anual</h2>
-
-        <Chart
-          type="bar"
-          height={350}
-          series={[
-            { name: "Receitas", data: receitasPorMes },
-            { name: "Despesas", data: despesasPorMes }
-          ]}
-          options={{
-            chart: { background: "transparent", foreColor: "#fff" },
-            colors: ["#22c55e", "#ef4444"],
-            xaxis: { categories: meses },
-            grid: { borderColor: "#333" },
-            plotOptions: {
-              bar: {
-                borderRadius: 6,
-                columnWidth: "45%",
-              }
-            }
-          }}
-        />
-      </div>
-
-      {/* TOP CATEGORIAS */}
-      <div className="bg-[#111] border border-[#222] p-6 rounded-xl">
-        <h2 className="text-xl font-bold mb-4 text-[#facc15]">Top Categorias</h2>
-        <ul className="space-y-2">
-          {topCategorias.map((c, i) => (
-            <li key={i} className="flex justify-between border-b border-[#222] pb-2">
-              <span>{c.nome}</span>
-              <span className="font-bold">{c.valor.toFixed(2)} €</span>
-            </li>
+      {/* Gráfico por categoria */}
+      <div className="flex flex-col gap-4">
+        <label className="text-gray-300">Categoria:</label>
+        <select
+          value={categoriaSelecionada}
+          onChange={(e) => setCategoriaSelecionada(e.target.value)}
+          className="bg-[#111] border border-[#333] text-white rounded-lg px-4 py-2"
+        >
+          <option value="">Selecione</option>
+          {dados.map((d, i) => (
+            <option key={i} value={d.categoria}>{d.categoria}</option>
           ))}
-        </ul>
+        </select>
+
+        {dadosGrafico && (
+          <div className="bg-[#111] border border-[#222] p-6 rounded-xl">
+            <Bar data={dadosGrafico} options={{ responsive: true }} />
+          </div>
+        )}
       </div>
 
-      {/* TOP EMPRESAS */}
-      <div className="bg-[#111] border border-[#222] p-6 rounded-xl">
-        <h2 className="text-xl font-bold mb-4 text-[#facc15]">Top Empresas</h2>
-        <ul className="space-y-2">
-          {topEmpresas.map((e, i) => (
-            <li key={i} className="flex justify-between border-b border-[#222] pb-2">
-              <span>{e.empresa}</span>
-              <span className="font-bold">{e.valor.toFixed(2)} €</span>
-            </li>
-          ))}
-        </ul>
-      </div>
     </div>
   );
 }
